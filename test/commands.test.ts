@@ -5,6 +5,7 @@ const mockCloseAll = jest.fn();
 const mockGetMarketplaceSettings = jest.fn();
 const mockSetMarketplaceLeadFee = jest.fn();
 const mockParseLeadFeeInput = jest.fn();
+const mockGetPhoneVerificationSummary = jest.fn();
 
 jest.mock('../src/middleware', () => ({
   reply: mockReply,
@@ -39,8 +40,10 @@ jest.mock('../src/cache', () => ({
 
 jest.mock('../src/addons/marketplace', () => ({
   getMarketplaceSettings: mockGetMarketplaceSettings,
+  getPhoneVerificationSummary: mockGetPhoneVerificationSummary,
   setMarketplaceLeadFee: mockSetMarketplaceLeadFee,
   parseLeadFeeInput: mockParseLeadFeeInput,
+  savePhoneVerification: jest.fn(),
 }));
 
 import * as commands from '../src/commands';
@@ -51,6 +54,7 @@ describe('Commands Module', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetMarketplaceSettings.mockResolvedValue({ currency: 'EUR', leadFee: 0.5 });
+    mockGetPhoneVerificationSummary.mockResolvedValue({ verified: false, phoneNumberMasked: '' });
     mockSetMarketplaceLeadFee.mockResolvedValue({ currency: 'EUR', leadFee: 0.75 });
     mockParseLeadFeeInput.mockImplementation((value: string) => Number(value));
     // Reset cache arrays
@@ -272,6 +276,25 @@ describe('Commands Module', () => {
         expect.objectContaining({
           reply_markup: {
             inline_keyboard: [[{ text: 'Open Mini App', web_app: { url: 'https://example.com/app' } }]],
+          },
+        })
+      );
+    });
+
+    it('should prompt users to verify their phone', async () => {
+      const ctx = createMockContext(false);
+
+      await commands.verifyPhoneCommand(ctx);
+
+      expect(mockGetPhoneVerificationSummary).toHaveBeenCalledWith('user123');
+      expect(mockReply).toHaveBeenCalledWith(
+        ctx,
+        expect.stringContaining('verify your phone'),
+        expect.objectContaining({
+          reply_markup: {
+            keyboard: [[{ text: 'Verify phone number', request_contact: true }]],
+            resize_keyboard: true,
+            one_time_keyboard: true,
           },
         })
       );

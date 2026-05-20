@@ -47,6 +47,8 @@ marketplace_crypto_refund_fee: 0.03
 marketplace_crypto_refund_chain: 'Polygon'
 mt_pelerin_url: 'https://widget.mtpelerin.com'
 telegram_payment_provider_token: ''
+marketplace_request_daily_limit: 5
+marketplace_request_expiry_hours: 24
 marketplace_voucher_providers:
   - 'X-bon'
   - 'Aircash'
@@ -81,8 +83,8 @@ dev_mode: false
 language:
   startCommandText: "Welcome to Marketplace Bot. Send what you need or choose a service below."
   faqCommandText: "Need help with urgent requests, boosts, trusted seller status, or refund options? Write your question here."
-  helpCommandText: "*Available commands:* /help /faq /id /miniapp"
-  helpCommandStaffText: "*Available commands:*\n    /start - Introduction\n    /faq - FAQ\n    /open - Show open requests\n    /reopen - Reopen a closed request\n    /close - Close a request\n    /clear - Close all requests\n    /ban - Ban a user\n    /leadfee - Show current lead fee\n    /setleadfee 0.50 - Update lead fee\n    /unban - Unban a user"
+  helpCommandText: "*Available commands:* /help /faq /id /miniapp /verifyphone"
+  helpCommandStaffText: "*Available commands:*\n    /start - Introduction\n    /faq - FAQ\n    /open - Show open requests\n    /reopen - Reopen a closed request\n    /close - Close a request\n    /clear - Close all requests\n    /ban - Ban a user\n    /leadfee - Show current lead fee\n    /setleadfee 0.50 - Update lead fee\n    /verifyphone - Verify your Telegram phone for marketplace posting\n    /unban - Unban a user"
   confirmationMessage: "Your request was received. A moderator or matching provider will review it shortly."
   blockedSpam: "You have sent too many requests in a short time. Please wait for moderation before sending more."
   ticket: "Request"

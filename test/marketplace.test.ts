@@ -9,6 +9,8 @@ jest.mock('../src/cache', () => ({
     marketplace_request_categories: ['Stan na dan', 'Tražim pomoć'],
     marketplace_cities: ['Beograd', 'Novi Sad'],
     marketplace_listing_categories: ['Auto', 'Nekretnine', 'Razno'],
+    marketplace_request_daily_limit: 5,
+    marketplace_request_expiry_hours: 24,
     marketplace_voucher_providers: ['X-bon', 'Aircash'],
     mt_pelerin_url: 'https://widget.mtpelerin.com',
     telegram_payment_provider_token: '',
@@ -69,6 +71,7 @@ import {
   getMarketplaceOptions,
   isProviderMatchingRequest,
   isValidEvmAddress,
+  normalizePhoneNumber,
   normalizeMarketplaceValue,
   normalizeVoucherCode,
   parseLeadFeeInput,
@@ -116,6 +119,11 @@ describe('marketplace helpers', () => {
     expect(normalizeVoucherCode(' xbon-1234 5678 ')).toBe('XBON12345678');
     expect(isValidEvmAddress('0x1234567890abcdef1234567890ABCDEF12345678')).toBe(true);
     expect(isValidEvmAddress('0x123')).toBe(false);
+  });
+
+  it('normalizes phone numbers for Telegram phone verification', () => {
+    expect(normalizePhoneNumber(' +381 64 123 4567 ')).toBe('+381641234567');
+    expect(normalizePhoneNumber('(064) 123-456')).toBe('064123456');
   });
 
   it('deducts network fee from crypto refunds', () => {

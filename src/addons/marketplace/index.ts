@@ -37,6 +37,8 @@ const DEFAULT_CITIES = [
 
 const DEFAULT_LISTING_CATEGORIES = ['Auto', 'Nekretnine', 'Razno'];
 const DEFAULT_VOUCHER_PROVIDERS = ['X-bon', 'Aircash', 'Voucher'];
+const DEFAULT_DAILY_ACTIVE_REQUEST_LIMIT = 5;
+const DEFAULT_REQUEST_EXPIRY_HOURS = 24;
 
 type TelegramUser = {
   id: string | number;
@@ -71,6 +73,9 @@ type MarketplaceRequest = mongoose.Document & {
   status: string;
   matchedProviderId: string | null;
   acceptedLeadId: mongoose.Types.ObjectId | null;
+  expiresAt: Date | null;
+  closedAt: Date | null;
+  closeReason: string;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -165,6 +170,31 @@ type BalanceLog = mongoose.Document & {
   updatedAt: Date;
 };
 
+type PhoneVerification = mongoose.Document & {
+  telegramUserId: string;
+  firstName: string;
+  username: string;
+  phoneNumber: string;
+  verifiedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type TransactionLog = mongoose.Document & {
+  telegramUserId: string;
+  amount: number;
+  currency: string;
+  type: string;
+  direction: string;
+  status: string;
+  referenceType: string;
+  referenceId: string;
+  note: string;
+  metadata: any;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 const SettingsSchema = new mongoose.Schema<MarketplaceSettings>({
   _id: { type: String, default: SETTINGS_ID },
   leadFee: { type: Number, default: Number(cache.config.marketplace_lead_fee || 0.5) },
@@ -201,6 +231,9 @@ const MarketplaceRequestSchema = new mongoose.Schema<MarketplaceRequest>({
   status: { type: String, default: 'open' },
   matchedProviderId: { type: String, default: null },
   acceptedLeadId: { type: mongoose.Schema.Types.ObjectId, default: null },
+  expiresAt: { type: Date, default: null },
+  closedAt: { type: Date, default: null },
+  closeReason: { type: String, default: '' },
 }, { timestamps: true });
 
 const ListingSchema = new mongoose.Schema<ClassifiedListing>({
@@ -272,6 +305,27 @@ const BalanceLogSchema = new mongoose.Schema<BalanceLog>({
   metadata: { type: Object, default: {} },
 }, { timestamps: true });
 
+const PhoneVerificationSchema = new mongoose.Schema<PhoneVerification>({
+  telegramUserId: { type: String, required: true, unique: true },
+  firstName: { type: String, default: '' },
+  username: { type: String, default: '' },
+  phoneNumber: { type: String, required: true },
+  verifiedAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+const TransactionLogSchema = new mongoose.Schema<TransactionLog>({
+  telegramUserId: { type: String, required: true },
+  amount: { type: Number, required: true },
+  currency: { type: String, default: cache.config.marketplace_currency || 'EUR' },
+  type: { type: String, required: true },
+  direction: { type: String, required: true },
+  status: { type: String, required: true },
+  referenceType: { type: String, default: '' },
+  referenceId: { type: String, default: '' },
+  note: { type: String, default: '' },
+  metadata: { type: Object, default: {} },
+}, { timestamps: true });
+
 const SettingsModel: any = (mongoose.models[`${collectionPrefix}_settings`] ||
   mongoose.model<MarketplaceSettings>(`${collectionPrefix}_settings`, SettingsSchema));
 const ProviderModel: any = (mongoose.models[`${collectionPrefix}_providers`] ||
@@ -288,6 +342,10 @@ const VoucherModel: any = (mongoose.models[`${collectionPrefix}_vouchers`] ||
   mongoose.model<Voucher>(`${collectionPrefix}_vouchers`, VoucherSchema));
 const BalanceLogModel: any = (mongoose.models[`${collectionPrefix}_balance_logs`] ||
   mongoose.model<BalanceLog>(`${collectionPrefix}_balance_logs`, BalanceLogSchema));
+const PhoneVerificationModel: any = (mongoose.models[`${collectionPrefix}_phone_verifications`] ||
+  mongoose.model<PhoneVerification>(`${collectionPrefix}_phone_verifications`, PhoneVerificationSchema));
+const TransactionLogModel: any = (mongoose.models[`${collectionPrefix}_transaction_logs`] ||
+  mongoose.model<TransactionLog>(`${collectionPrefix}_transaction_logs`, TransactionLogSchema));
 
 const normalizeMarketplaceValue = (value: string = ''): string => value
   .normalize('NFKD')
@@ -319,6 +377,24 @@ const getMarketplaceOptions = () => ({
     : DEFAULT_VOUCHER_PROVIDERS,
 });
 
+const getMarketplaceRequestDailyLimit = (): number => {
+  const configured = Math.floor(Number(
+    cache.config.marketplace_request_daily_limit || DEFAULT_DAILY_ACTIVE_REQUEST_LIMIT
+  ));
+  return configured > 0 ? configured : DEFAULT_DAILY_ACTIVE_REQUEST_LIMIT;
+};
+
+const getMarketplaceRequestExpiryHours = (): number => {
+  const configured = Math.floor(Number(
+    cache.config.marketplace_request_expiry_hours || DEFAULT_REQUEST_EXPIRY_HOURS
+  ));
+  return configured > 0 ? configured : DEFAULT_REQUEST_EXPIRY_HOURS;
+};
+
+const getMarketplaceRequestExpiryDate = (from: Date = new Date()): Date => new Date(
+  from.getTime() + (getMarketplaceRequestExpiryHours() * 60 * 60 * 1000)
+);
+
 const parseLeadFeeInput = (value: string): number | null => {
   if (!value) return null;
   const cleaned = value.replace(',', '.').replace(/[^\d.]/g, '');
@@ -337,6 +413,26 @@ const roundMoney = (amount: number): number => Math.round(amount * 100) / 100;
 
 const calculateCryptoRefundNetAmount = (amount: number, networkFee: number): number =>
   roundMoney(Math.max(roundMoney(amount) - roundMoney(networkFee), 0));
+
+const normalizePhoneNumber = (value: string = ''): string => {
+  const trimmed = value.trim();
+  const cleaned = trimmed.replace(/[^\d+]/g, '');
+  if (!cleaned) return '';
+  if (cleaned.startsWith('+')) {
+    return `+${cleaned.slice(1).replace(/\+/g, '')}`;
+  }
+  return cleaned.replace(/\+/g, '');
+};
+
+const isValidPhoneNumber = (value: string = ''): boolean => /\d{7,}/.test(normalizePhoneNumber(value));
+
+const maskPhoneNumber = (value: string = ''): string => {
+  const normalized = normalizePhoneNumber(value);
+  const digitsOnly = normalized.replace(/[^\d]/g, '');
+  if (!digitsOnly) return '';
+  if (digitsOnly.length <= 4) return digitsOnly;
+  return `${normalized.startsWith('+') ? '+' : ''}${'*'.repeat(Math.max(digitsOnly.length - 4, 2))}${digitsOnly.slice(-4)}`;
+};
 
 const isProviderMatchingRequest = (
   provider: { citiesNormalized?: string[]; categoriesNormalized?: string[] },
@@ -430,6 +526,32 @@ async function recordBalanceLog(
   });
 }
 
+async function recordTransactionLog(
+  telegramUserId: string | number,
+  amount: number,
+  currency: string,
+  type: string,
+  direction: string,
+  status: string,
+  note: string,
+  referenceType: string = '',
+  referenceId: string = '',
+  metadata: any = {},
+) {
+  return await TransactionLogModel.create({
+    telegramUserId: telegramUserId.toString(),
+    amount: roundMoney(amount),
+    currency: currency || cache.config.marketplace_currency || 'EUR',
+    type,
+    direction,
+    status,
+    referenceType,
+    referenceId,
+    note,
+    metadata,
+  });
+}
+
 async function adjustWalletBalance(
   telegramUserId: string | number,
   delta: number,
@@ -499,6 +621,86 @@ async function listAllBalanceLogs(): Promise<any[]> {
   return logs.map((entry: any) => toPlainObject(entry));
 }
 
+async function listAllTransactionLogs(): Promise<any[]> {
+  const logs = await TransactionLogModel.find({}).sort({ createdAt: -1 }).limit(100);
+  return logs.map((entry: any) => toPlainObject(entry));
+}
+
+async function savePhoneVerification(user: TelegramUser, phoneNumber: string) {
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  if (!isValidPhoneNumber(normalizedPhone)) {
+    throw new Error('A valid phone number is required for verification');
+  }
+
+  const verification = await PhoneVerificationModel.findOneAndUpdate(
+    { telegramUserId: user.id.toString() },
+    {
+      $set: {
+        firstName: user.first_name || '',
+        username: user.username || '',
+        phoneNumber: normalizedPhone,
+        verifiedAt: new Date(),
+      },
+      $setOnInsert: {
+        telegramUserId: user.id.toString(),
+      },
+    },
+    { upsert: true, new: true }
+  );
+
+  return {
+    ...toPlainObject(verification),
+    phoneNumberMasked: maskPhoneNumber(normalizedPhone),
+  };
+}
+
+async function getPhoneVerificationSummary(telegramUserId: string | number) {
+  const verification = await PhoneVerificationModel.findOne({ telegramUserId: telegramUserId.toString() });
+  if (!verification) {
+    return {
+      verified: false,
+      phoneNumberMasked: '',
+      verifiedAt: null,
+    };
+  }
+
+  return {
+    verified: true,
+    phoneNumberMasked: maskPhoneNumber(verification.phoneNumber || ''),
+    verifiedAt: verification.verifiedAt || null,
+  };
+}
+
+async function expireMarketplaceRequests(): Promise<number> {
+  const now = new Date();
+  const expiredRequests = await RequestModel.find({
+    status: { $in: ['open', 'matched'] },
+    expiresAt: { $ne: null, $lte: now },
+  }).select('_id');
+
+  const expiredRequestIds = expiredRequests.map((request: any) => request._id);
+  if (expiredRequestIds.length === 0) {
+    return 0;
+  }
+
+  await RequestModel.updateMany(
+    { _id: { $in: expiredRequestIds } },
+    {
+      $set: {
+        status: 'expired',
+        closedAt: now,
+        closeReason: 'expired',
+      },
+    }
+  );
+  await LeadModel.updateMany(
+    { requestId: { $in: expiredRequestIds }, status: 'pending_payment' },
+    { $set: { status: 'cancelled' } }
+  );
+
+  return expiredRequestIds.length;
+}
+
 async function upsertProviderProfile(user: TelegramUser, data: any): Promise<ProviderProfile> {
   const cities = Array.isArray(data.cities) ? data.cities : [];
   const categories = Array.isArray(data.categories) ? data.categories : [];
@@ -526,6 +728,24 @@ async function getProviderProfile(telegramUserId: string | number): Promise<Prov
 }
 
 async function createMarketplaceRequest(user: TelegramUser, payload: any): Promise<MarketplaceRequest> {
+  await expireMarketplaceRequests();
+  const phoneVerification = await getPhoneVerificationSummary(user.id);
+  if (!phoneVerification.verified) {
+    throw new Error('Telegram phone verification is required before posting requests. Use /verifyphone in the bot first.');
+  }
+
+  const activeWindowStart = new Date(Date.now() - (getMarketplaceRequestExpiryHours() * 60 * 60 * 1000));
+  const activeRequestCount = await RequestModel.countDocuments({
+    clientTelegramId: user.id.toString(),
+    status: { $in: ['open', 'matched'] },
+    createdAt: { $gte: activeWindowStart },
+  });
+  const requestDailyLimit = getMarketplaceRequestDailyLimit();
+  if (activeRequestCount >= requestDailyLimit) {
+    throw new Error(`You can have at most ${requestDailyLimit} active requests in a 24 hour window.`);
+  }
+
+  const createdAt = new Date();
   const request = await RequestModel.create({
     clientTelegramId: user.id.toString(),
     clientName: user.first_name || 'Telegram user',
@@ -537,12 +757,16 @@ async function createMarketplaceRequest(user: TelegramUser, payload: any): Promi
     cityNormalized: normalizeMarketplaceValue(payload.city),
     notes: (payload.notes || '').trim(),
     status: 'open',
+    expiresAt: getMarketplaceRequestExpiryDate(createdAt),
+    closedAt: null,
+    closeReason: '',
   });
   await dispatchRequestToProviders(request);
   return request;
 }
 
 async function getRequestById(requestId: string): Promise<MarketplaceRequest | null> {
+  await expireMarketplaceRequests();
   return await RequestModel.findById(requestId);
 }
 
@@ -606,12 +830,14 @@ async function decorateRequestsWithLeadData(requestDocs: any[]): Promise<any[]> 
 }
 
 async function listClientRequests(userId: string | number): Promise<any[]> {
+  await expireMarketplaceRequests();
   const requests = await RequestModel.find({ clientTelegramId: userId.toString(), status: { $ne: 'deleted' } })
     .sort({ createdAt: -1 });
   return await decorateRequestsWithLeadData(requests);
 }
 
 async function listProviderRequests(userId: string | number): Promise<any[]> {
+  await expireMarketplaceRequests();
   const provider = await getProviderProfile(userId);
   if (!provider || !provider.isActive) return [];
 
@@ -668,6 +894,7 @@ async function listProviderRequests(userId: string | number): Promise<any[]> {
 }
 
 async function listAllRequests(): Promise<any[]> {
+  await expireMarketplaceRequests();
   const requests = await RequestModel.find({ status: { $ne: 'deleted' } }).sort({ createdAt: -1 });
   return await decorateRequestsWithLeadData(requests);
 }
@@ -698,6 +925,35 @@ async function deleteMarketplaceRequest(requestId: string): Promise<MarketplaceR
     { $set: { status: 'deleted' } },
     { new: true }
   );
+}
+
+async function closeMarketplaceRequest(
+  requestId: string,
+  userId: string | number,
+  reason: string = 'found_option',
+): Promise<MarketplaceRequest> {
+  await expireMarketplaceRequests();
+  const request = await RequestModel.findById(requestId);
+  if (!request || request.status === 'deleted') {
+    throw new Error('Request not found');
+  }
+  if (request.clientTelegramId !== userId.toString()) {
+    throw new Error('You can only close your own requests');
+  }
+  if (['closed', 'expired'].includes(request.status)) {
+    return request;
+  }
+
+  request.status = 'closed';
+  request.closedAt = new Date();
+  request.closeReason = reason;
+  await request.save();
+  await LeadModel.updateMany(
+    { requestId: request._id, status: 'pending_payment' },
+    { $set: { status: 'cancelled' } }
+  );
+
+  return request;
 }
 
 async function createListing(user: TelegramUser, payload: any): Promise<ClassifiedListing> {
@@ -821,6 +1077,18 @@ async function redeemVoucher(user: TelegramUser, code: string) {
 
   wallet.totalVoucherRedeemed = roundMoney((wallet.totalVoucherRedeemed || 0) + voucher.amount);
   await wallet.save();
+  await recordTransactionLog(
+    user.id,
+    voucher.amount,
+    voucher.currency || (cache.config.marketplace_currency || 'EUR'),
+    'voucher_activation',
+    'credit',
+    'completed',
+    `Voucher activated (${voucher.provider})`,
+    'voucher',
+    voucher._id.toString(),
+    { provider: voucher.provider, code: voucher.code }
+  );
 
   return {
     voucher: toPlainObject(voucher),
@@ -829,6 +1097,7 @@ async function redeemVoucher(user: TelegramUser, code: string) {
 }
 
 async function getAdminDashboardSummary() {
+  await expireMarketplaceRequests();
   const [openRequests, matchedRequests, activeListings, providers, totalWallets, pendingRefunds, unusedVouchers] = await Promise.all([
     RequestModel.countDocuments({ status: 'open' }),
     RequestModel.countDocuments({ status: 'matched' }),
@@ -904,7 +1173,7 @@ async function completeLeadPaymentForLead(lead: Lead, paymentChargeId: string) {
   }
 
   const request = await getRequestById(lead.requestId.toString());
-  if (!request) {
+  if (!request || ['closed', 'expired', 'deleted'].includes(request.status)) {
     throw new Error('Request not found for lead');
   }
 
@@ -918,6 +1187,24 @@ async function completeLeadPaymentForLead(lead: Lead, paymentChargeId: string) {
   request.matchedProviderId = lead.providerTelegramId;
   request.acceptedLeadId = lead._id as mongoose.Types.ObjectId;
   await request.save();
+  await recordTransactionLog(
+    lead.providerTelegramId,
+    lead.feeAmount,
+    lead.currency,
+    'lead_payment',
+    'debit',
+    'completed',
+    `Lead unlock payment via ${lead.paymentMethod || 'telegram'}`,
+    'lead',
+    lead._id.toString(),
+    {
+      paymentChargeId,
+      paymentMethod: lead.paymentMethod,
+      requestId: request._id.toString(),
+      category: request.category,
+      city: request.city,
+    }
+  );
 
   const contact = getClientContact(request);
   const providerHandle = lead.providerUsername ? `@${lead.providerUsername}` : lead.providerName || 'provider';
@@ -947,7 +1234,7 @@ async function completeLeadPaymentForLead(lead: Lead, paymentChargeId: string) {
 
 async function createLeadCheckout(user: TelegramUser, requestId: string) {
   const request = await getRequestById(requestId);
-  if (!request || request.status === 'deleted' || request.status === 'closed') {
+  if (!request || ['deleted', 'closed', 'expired'].includes(request.status)) {
     throw new Error('Request not found');
   }
   if (request.clientTelegramId === user.id.toString()) {
@@ -1123,6 +1410,21 @@ async function approveLeadRefundInternal(leadId: string, adminId: string | numbe
   lead.refund_net_amount = lead.feeAmount;
   lead.refund_tx_reference = `internal-wallet-${Date.now()}`;
   await lead.save();
+  await recordTransactionLog(
+    lead.providerTelegramId,
+    lead.feeAmount,
+    lead.currency,
+    'refund_internal',
+    'credit',
+    'approved',
+    'Admin approved internal wallet refund',
+    'lead',
+    lead._id.toString(),
+    {
+      approvedBy: adminId.toString(),
+      refundMethod: 'internal',
+    }
+  );
 
   await sendMessage(
     lead.providerTelegramId,
@@ -1164,6 +1466,26 @@ async function approveLeadRefundCrypto(
   lead.refund_net_amount = netAmount;
   lead.refund_tx_reference = `${settings.cryptoRefundChain || 'EVM'}-${Date.now()}`;
   await lead.save();
+  await recordTransactionLog(
+    lead.providerTelegramId,
+    lead.feeAmount,
+    lead.currency,
+    'refund_crypto',
+    'credit',
+    'approved',
+    `Admin approved crypto refund on ${settings.cryptoRefundChain}`,
+    'lead',
+    lead._id.toString(),
+    {
+      approvedBy: adminId.toString(),
+      refundMethod: 'crypto',
+      walletAddress: targetAddress,
+      grossAmount: lead.feeAmount,
+      networkFee,
+      netAmount,
+      chain: settings.cryptoRefundChain,
+    }
+  );
 
   await recordExternalBalanceEvent(
     lead.providerTelegramId,
@@ -1205,6 +1527,7 @@ export {
   approveLeadRefundCrypto,
   approveLeadRefundInternal,
   calculateCryptoRefundNetAmount,
+  closeMarketplaceRequest,
   createLeadCheckout,
   createListing,
   createMarketplaceRequest,
@@ -1213,12 +1536,14 @@ export {
   deleteListing,
   deleteMarketplaceRequest,
   dispatchRequestToProviders,
+  expireMarketplaceRequests,
   findLeadByPayload,
   formatMoney,
   getAdminDashboardSummary,
   getLeadById,
   getMarketplaceOptions,
   getMarketplaceSettings,
+  getPhoneVerificationSummary,
   getOrCreateWallet,
   getProviderProfile,
   getRequestById,
@@ -1229,16 +1554,19 @@ export {
   listAllBalanceLogs,
   listAllListings,
   listAllRequests,
+  listAllTransactionLogs,
   listAllVouchers,
   listClientRequests,
   listListings,
   listProviderRequests,
   listUserListings,
+  normalizePhoneNumber,
   normalizeMarketplaceValue,
   normalizeVoucherCode,
   parseLeadFeeInput,
   redeemVoucher,
   requestLeadRefund,
+  savePhoneVerification,
   setMarketplaceLeadFee,
   toMinorUnits,
   updateListing,

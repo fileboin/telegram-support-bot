@@ -3,9 +3,11 @@ import cache from './cache';
 import { Messenger } from './interfaces';
 import * as log from 'fancy-log'
 
-const MONGO_URI = cache.config.mongodb_uri || process.env.MONGO_URI || 'mongodb://localhost:27017/support';
-const botTokenSuffix = cache.config.bot_token.slice(-5);
-const collectionName = `bot_${cache.config.owner_id}_${botTokenSuffix}`;
+const getMongoUri = (): string =>
+  cache.config.mongodb_uri || process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/support';
+
+const botTokenSuffix = (cache.config.bot_token || 'token').slice(-5);
+const collectionName = `bot_${cache.config.owner_id || 'owner'}_${botTokenSuffix}`;
 
 export interface ISupportee extends mongoose.Document {
   ticketId: number;
@@ -30,6 +32,14 @@ export const SupporteeSchema = new mongoose.Schema<ISupportee>({
 const Supportee = mongoose.model(collectionName, SupporteeSchema);
 
 export async function connect() {
+  const configuredDatabaseUrl = cache.config.database_url || process.env.DATABASE_URL || '';
+  if (configuredDatabaseUrl && !/^mongodb(\+srv)?:\/\//i.test(configuredDatabaseUrl)) {
+    log.warn(
+      'DATABASE_URL is configured with a non-MongoDB connection string. ' +
+      'This app still uses MongoDB/Mongoose internally, so Neon/PostgreSQL schema sync is not supported yet.'
+    );
+  }
+
   mongoose.connection.on('open', () => {
     log.info('Connected to mongo server.');
   });
@@ -39,7 +49,7 @@ export async function connect() {
     process.exit(1);
   });
 
-  const connection = await mongoose.connect(MONGO_URI, {
+  const connection = await mongoose.connect(getMongoUri(), {
     serverSelectionTimeoutMS: 5000,
   });
 

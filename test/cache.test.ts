@@ -1,4 +1,5 @@
 import cache from '../src/cache';
+import { applyEnvironmentOverrides, parseDotEnvFile } from '../src/env-config';
 import * as fs from 'fs';
 import * as YAML from 'yaml';
 
@@ -68,5 +69,43 @@ describe('Cache Module', () => {
     expect(cache.config).toHaveProperty('categories');
     expect(cache.config).toHaveProperty('anonymous_replies');
     expect(cache.config).toHaveProperty('clean_replies');
+  });
+
+  it('should parse dotenv-style content', () => {
+    expect(parseDotEnvFile([
+      '# comment',
+      'TELEGRAM_BOT_TOKEN=test-token',
+      'DEFAULT_LEAD_FEE_EUR=0.75',
+      '',
+    ].join('\n'))).toEqual({
+      TELEGRAM_BOT_TOKEN: 'test-token',
+      DEFAULT_LEAD_FEE_EUR: '0.75',
+    });
+  });
+
+  it('should map supported env values onto runtime config', () => {
+    const baseConfig: any = {
+      bot_token: 'yaml-token',
+      owner_id: 'yaml-owner',
+      marketplace_lead_fee: 0.5,
+      mongodb_uri: 'mongodb://yaml-host/support',
+      database_url: '',
+      my_evm_receiving_address: '',
+    };
+
+    const mapped = applyEnvironmentOverrides(baseConfig, {
+      TELEGRAM_BOT_TOKEN: 'env-token',
+      ADMIN_TELEGRAM_ID: 'env-owner',
+      DEFAULT_LEAD_FEE_EUR: '0.90',
+      MY_EVM_RECEIVING_ADDRESS: '0xabc',
+      DATABASE_URL: 'postgresql://example',
+    });
+
+    expect(mapped.bot_token).toBe('env-token');
+    expect(mapped.owner_id).toBe('env-owner');
+    expect(mapped.marketplace_lead_fee).toBe(0.9);
+    expect(mapped.my_evm_receiving_address).toBe('0xabc');
+    expect(mapped.database_url).toBe('postgresql://example');
+    expect(mapped.mongodb_uri).toBe('mongodb://yaml-host/support');
   });
 });

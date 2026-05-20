@@ -3,7 +3,13 @@ import cache from './cache';
 import * as middleware from './middleware';
 import { Context } from './interfaces';
 import { ISupportee } from './db';
-import { getMarketplaceSettings, parseLeadFeeInput, setMarketplaceLeadFee } from './addons/marketplace';
+import {
+  getMarketplaceSettings,
+  getPhoneVerificationSummary,
+  parseLeadFeeInput,
+  savePhoneVerification,
+  setMarketplaceLeadFee,
+} from './addons/marketplace';
 import * as log from 'fancy-log'
 
 /**
@@ -252,6 +258,66 @@ const miniAppCommand = (ctx: Context): void => {
   });
 };
 
+/**
+ * Prompt the user to verify their Telegram phone number.
+ *
+ * @param ctx - The bot context.
+ */
+const verifyPhoneCommand = async (ctx: Context): Promise<void> => {
+  if (ctx.chat.type !== 'private') {
+    middleware.reply(ctx, cache.config.language.prvChatOnly);
+    return;
+  }
+
+  const verification = await getPhoneVerificationSummary(ctx.from.id);
+  if (verification.verified) {
+    middleware.reply(
+      ctx,
+      `Your phone is already verified (${verification.phoneNumberMasked}). You can return to the Mini App and post requests.`
+    );
+    return;
+  }
+
+  middleware.reply(
+    ctx,
+    'To verify your phone for Marketplace requests, tap the button below and share your Telegram contact.',
+    {
+      parse_mode: cache.config.parse_mode,
+      reply_markup: {
+        keyboard: [[{ text: 'Verify phone number', request_contact: true }]],
+        resize_keyboard: true,
+        one_time_keyboard: true,
+      },
+    }
+  );
+};
+
+/**
+ * Accept a Telegram contact share and mark the user as phone verified.
+ *
+ * @param ctx - The bot context.
+ */
+const verifyPhoneContactCommand = async (ctx: Context): Promise<void> => {
+  const contact = ctx.message.contact;
+  if (!contact?.phone_number) {
+    return;
+  }
+  if (contact.user_id && contact.user_id.toString() !== ctx.from.id.toString()) {
+    middleware.reply(ctx, 'Please share your own Telegram contact to complete phone verification.');
+    return;
+  }
+
+  const verification = await savePhoneVerification(ctx.from, contact.phone_number);
+  middleware.reply(
+    ctx,
+    `Phone verified successfully (${verification.phoneNumberMasked}). You can now return to the Mini App and post requests.`,
+    {
+      parse_mode: cache.config.parse_mode,
+      reply_markup: { remove_keyboard: true },
+    }
+  );
+};
+
 export {
   banCommand,
   openCommand,
@@ -263,4 +329,6 @@ export {
   leadFeeCommand,
   setLeadFeeCommand,
   miniAppCommand,
+  verifyPhoneCommand,
+  verifyPhoneContactCommand,
 };
