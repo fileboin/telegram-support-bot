@@ -1,4 +1,4 @@
-import cache, { applyEnvironmentOverrides, parseDotEnvFile } from '../src/cache';
+import cache from '../src/cache';
 import * as fs from 'fs';
 import * as YAML from 'yaml';
 
@@ -8,6 +8,7 @@ jest.mock('yaml');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 const mockYAML = YAML as jest.Mocked<typeof YAML>;
+const cacheModule = require('../src/cache');
 
 describe('Cache Module', () => {
   beforeEach(() => {
@@ -71,7 +72,7 @@ describe('Cache Module', () => {
   });
 
   it('should parse dotenv-style content', () => {
-    expect(parseDotEnvFile([
+    expect(cacheModule.parseDotEnvFile([
       '# comment',
       'TELEGRAM_BOT_TOKEN=test-token',
       'DEFAULT_LEAD_FEE_EUR=0.75',
@@ -92,7 +93,7 @@ describe('Cache Module', () => {
       my_evm_receiving_address: '',
     };
 
-    const mapped = applyEnvironmentOverrides(baseConfig, {
+    const mapped = cacheModule.applyEnvironmentOverrides(baseConfig, {
       TELEGRAM_BOT_TOKEN: 'env-token',
       ADMIN_TELEGRAM_ID: 'env-owner',
       DEFAULT_LEAD_FEE_EUR: '0.90',
