@@ -156,7 +156,7 @@ describe('Text Module', () => {
     });
 
     it('should show category keyboard for regular messages when conditions are met', () => {
-      const ctx = createMockContext('I need help with something');
+      const ctx = createMockContext('I need something unrelated');
       const mockAddon = { platform: 'telegram' };
       const keys = [['Support'], ['Sales']];
 

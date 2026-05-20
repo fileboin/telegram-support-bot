@@ -13,6 +13,8 @@ type CategoryRoute = {
   group: string;
   category: string;
   tag: string;
+  matchLength?: number;
+  priority?: number;
 };
 
 const normalizeText = (value: string = ''): string => value
@@ -37,9 +39,16 @@ const getSubgroupDisplayName = (
 const hasKeywordMatch = (message: string, tokens: string[]): boolean =>
   tokens.some((token) => message.includes(token));
 
+const getLongestMatchLength = (message: string, tokens: string[]): number => {
+  return tokens
+    .filter((token) => message.includes(token))
+    .reduce((longest, token) => Math.max(longest, token.length), 0);
+};
+
 const findCategoryRoute = (message: string): CategoryRoute | null => {
   const normalizedMessage = normalizeText(message);
   const { categories } = cache.config;
+  const matches: CategoryRoute[] = [];
 
   if (!normalizedMessage || !Array.isArray(categories) || categories.length === 0) {
     return null;
@@ -57,11 +66,13 @@ const findCategoryRoute = (message: string): CategoryRoute | null => {
       );
 
       if (hasKeywordMatch(normalizedMessage, subgroupTokens)) {
-        return {
+        matches.push({
           group: subgroup.group_id,
           category: subgroup.name,
           tag: category.tag || '',
-        };
+          matchLength: getLongestMatchLength(normalizedMessage, subgroupTokens),
+          priority: 2,
+        });
       }
     }
   }
@@ -71,15 +82,30 @@ const findCategoryRoute = (message: string): CategoryRoute | null => {
 
     const categoryTokens = toSearchTokens(category.name, category.keywords);
     if (hasKeywordMatch(normalizedMessage, categoryTokens)) {
-      return {
+      matches.push({
         group: category.group_id,
         category: category.name,
         tag: category.tag || '',
-      };
+        matchLength: getLongestMatchLength(normalizedMessage, categoryTokens),
+        priority: 1,
+      });
     }
   }
 
-  return null;
+  if (matches.length === 0) {
+    return null;
+  }
+
+  matches.sort((a, b) =>
+    (b.matchLength || 0) - (a.matchLength || 0) ||
+    (b.priority || 0) - (a.priority || 0));
+
+  const bestMatch = matches[0];
+  return {
+    group: bestMatch.group,
+    category: bestMatch.category,
+    tag: bestMatch.tag,
+  };
 };
 
 const applyCategoryRoute = (ctx: Context): boolean => {
