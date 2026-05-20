@@ -36,6 +36,7 @@ jest.mock('../src/cache', () => ({
         msg: 'Support',
         tag: 'SUPPORT',
         group_id: 'group1',
+        keywords: ['support', 'help'],
         subgroups: []
       },
       {
@@ -43,7 +44,22 @@ jest.mock('../src/cache', () => ({
         msg: 'Sales',
         tag: 'SALES',
         group_id: 'group2',
+        keywords: ['sales', 'pricing'],
         subgroups: []
+      },
+      {
+        name: 'Urgent Services',
+        msg: 'Urgent Services',
+        tag: 'URGENT',
+        group_id: 'group3',
+        keywords: ['urgent request', 'local help'],
+        subgroups: [
+          {
+            name: 'AC Repair',
+            group_id: 'group-ac',
+            keywords: ['ac repair', 'air conditioner', 'klima']
+          }
+        ]
       }
     ],
     parse_mode: 'MarkdownV2',
@@ -140,7 +156,7 @@ describe('Text Module', () => {
     });
 
     it('should show category keyboard for regular messages when conditions are met', () => {
-      const ctx = createMockContext('I need help with something');
+      const ctx = createMockContext('I need something unrelated');
       const mockAddon = { platform: 'telegram' };
       const keys = [['Support'], ['Sales']];
 
@@ -194,6 +210,49 @@ describe('Text Module', () => {
 
       // Should not show keyboard for category messages
       expect(mockReply).not.toHaveBeenCalled();
+    });
+
+    it('should auto-route category keywords before showing the keyboard', async () => {
+      const ctx = createMockContext('I need local help right now');
+      const mockAddon = { platform: 'telegram' };
+      const keys = [['Support'], ['Sales']];
+
+      mockGetTicketByUserId.mockResolvedValue(null);
+      mockAdd.mockResolvedValue(1);
+
+      await text.handleText(mockAddon as any, ctx, keys);
+
+      expect(mockReply).not.toHaveBeenCalled();
+      expect(ctx.session.group).toBe('group3');
+      expect(ctx.session.groupCategory).toBe('Urgent Services');
+      expect(ctx.session.groupTag).toBe('URGENT');
+      expect(mockAdd).toHaveBeenCalledWith(
+        'user123',
+        'open',
+        'Urgent Services',
+        'telegram'
+      );
+    });
+
+    it('should auto-route subgroup keywords before showing the keyboard', async () => {
+      const ctx = createMockContext('Need AC repair today in town');
+      const mockAddon = { platform: 'telegram' };
+
+      mockGetTicketByUserId.mockResolvedValue(null);
+      mockAdd.mockResolvedValue(1);
+
+      await text.handleText(mockAddon as any, ctx, []);
+
+      expect(mockReply).not.toHaveBeenCalled();
+      expect(ctx.session.group).toBe('group-ac');
+      expect(ctx.session.groupCategory).toBe('AC Repair');
+      expect(ctx.session.groupTag).toBe('URGENT');
+      expect(mockAdd).toHaveBeenCalledWith(
+        'user123',
+        'open',
+        'AC Repair',
+        'telegram'
+      );
     });
   });
 
