@@ -123,6 +123,7 @@ export class Config {
   pass_start: boolean = false;
   categories: Category[] = [];
   mongodb_uri: string = 'mongodb://mongodb:27017/support';
+  database_url: string = '';
   use_llm: boolean = false;
   llm_api_key: string;
   llm_base_url: string;
@@ -140,6 +141,7 @@ export class Config {
   marketplace_request_daily_limit: number = 5;
   marketplace_request_expiry_hours: number = 24;
   mt_pelerin_url: string = '';
+  my_evm_receiving_address: string = '';
   telegram_payment_provider_token: string = '';
 }
 
