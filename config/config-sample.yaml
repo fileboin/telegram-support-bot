@@ -34,7 +34,14 @@ web_app_url: 'https://your-domain.example.com' # Public HTTPS URL used for Teleg
 marketplace_enabled: true
 marketplace_lead_fee: 0.50
 marketplace_currency: 'EUR'
+marketplace_crypto_refund_fee: 0.03
+marketplace_crypto_refund_chain: 'Polygon'
+mt_pelerin_url: 'https://widget.mtpelerin.com'
 telegram_payment_provider_token: '' # Telegram payments provider token. Leave empty to unlock leads manually for testing.
+marketplace_voucher_providers:
+  - 'X-bon'
+  - 'Aircash'
+  - 'Voucher'
 marketplace_request_categories:
   - 'Stan na dan'
   - 'Tražim pomoć'

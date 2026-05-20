@@ -5,21 +5,30 @@ import cache from '../../cache';
 import TelegramAddon from '../telegram';
 import * as log from 'fancy-log';
 import {
+  approveLeadRefundCrypto,
+  approveLeadRefundInternal,
   createLeadCheckout,
   createListing,
   createMarketplaceRequest,
+  createVoucher,
   deleteListing,
   deleteMarketplaceRequest,
   getAdminDashboardSummary,
+  getLeadById,
   getMarketplaceOptions,
   getMarketplaceSettings,
   getProviderProfile,
+  getWalletSummary,
+  listAllBalanceLogs,
   listAllListings,
   listAllRequests,
+  listAllVouchers,
   listClientRequests,
   listListings,
   listProviderRequests,
   parseLeadFeeInput,
+  redeemVoucher,
+  requestLeadRefund,
   setMarketplaceLeadFee,
   updateListing,
   updateMarketplaceRequest,
@@ -87,6 +96,7 @@ const init = function(_bot: TelegramAddon) {
         listProviderRequests(req.user.id),
         listListings(),
       ]);
+      const walletSummary = await getWalletSummary(req.user.id);
 
       const response: any = {
         user: req.user,
@@ -94,23 +104,32 @@ const init = function(_bot: TelegramAddon) {
         settings: {
           leadFee: settings.leadFee,
           currency: settings.currency,
+          mtPelerinUrl: settings.mtPelerinUrl,
+          cryptoRefundFee: settings.cryptoRefundFee,
+          cryptoRefundChain: settings.cryptoRefundChain,
         },
         options: getMarketplaceOptions(),
         providerProfile,
         myRequests,
         providerRequests,
         listings,
+        wallet: walletSummary.wallet,
+        balanceLogs: walletSummary.balanceLogs,
       };
 
       if (req.isAdmin) {
-        const [dashboard, adminRequests, adminListings] = await Promise.all([
+        const [dashboard, adminRequests, adminListings, vouchers, adminBalanceLogs] = await Promise.all([
           getAdminDashboardSummary(),
           listAllRequests(),
           listAllListings(),
+          listAllVouchers(),
+          listAllBalanceLogs(),
         ]);
         response.dashboard = dashboard;
         response.adminRequests = adminRequests;
         response.adminListings = adminListings;
+        response.vouchers = vouchers;
+        response.adminBalanceLogs = adminBalanceLogs;
       }
 
       res.json(response);
@@ -182,6 +201,32 @@ const init = function(_bot: TelegramAddon) {
     }
   });
 
+  app.post('/api/leads/:id/refund-request', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      const lead = await requestLeadRefund(
+        req.user,
+        req.params.id,
+        req.body?.method || 'internal',
+        req.body?.evmAddress || ''
+      );
+      res.json(lead);
+    } catch (error) {
+      serializeError(res, error);
+    }
+  });
+
+  app.post('/api/leads/:id/refund-approve', ensureAuthenticated, ensureAdmin, async (req: any, res: any) => {
+    try {
+      const method = req.body?.method === 'crypto' ? 'crypto' : 'internal';
+      const lead = method === 'crypto'
+        ? await approveLeadRefundCrypto(req.params.id, req.user.id.toString(), req.body?.walletAddress || '')
+        : await approveLeadRefundInternal(req.params.id, req.user.id.toString());
+      res.json(lead);
+    } catch (error) {
+      serializeError(res, error);
+    }
+  });
+
   app.post('/api/listings', ensureAuthenticated, async (req: any, res: any) => {
     try {
       const payload = req.body || {};
@@ -190,6 +235,24 @@ const init = function(_bot: TelegramAddon) {
       }
       const listing = await createListing(req.user, payload);
       res.status(201).json(listing);
+    } catch (error) {
+      serializeError(res, error);
+    }
+  });
+
+  app.post('/api/vouchers/redeem', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      const result = await redeemVoucher(req.user, (req.body?.code || '').toString());
+      res.json(result);
+    } catch (error) {
+      serializeError(res, error);
+    }
+  });
+
+  app.post('/api/vouchers', ensureAuthenticated, ensureAdmin, async (req: any, res: any) => {
+    try {
+      const voucher = await createVoucher(req.user.id, req.body || {});
+      res.status(201).json(voucher);
     } catch (error) {
       serializeError(res, error);
     }
