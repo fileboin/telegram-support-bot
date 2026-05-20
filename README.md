@@ -34,6 +34,7 @@ When a user sends a message to the support chat it will create a ticket which wi
 - [x] Web chat [beta]
 - [x] **Staff groups can now be on Telegram _or_ Signal**
 - [x] **LLM support (OpenAI, OpenAI-compatible APIs)** – generate automatic responses using large language models
+- [x] **Optional keyword-based category routing** for search-first request flows
 
 ## 🤖 OpenAi Integration
 
@@ -55,6 +56,15 @@ llm_knowledge: >
 ```
 
 > Use cases: FAQ generation, fallback replies when no staff replies, 24/7 automated assistant, hybrid staff-AI workflows.
+
+## 🏪 Marketplace / urgent services example
+
+TSB can also be used as the intake and routing layer for a local marketplace or urgent-service bot.  
+See [`docs/balkan-marketplace-blueprint.md`](docs/balkan-marketplace-blueprint.md) for an implementation guide and
+[`config/examples/balkan-marketplace.config.yaml`](config/examples/balkan-marketplace.config.yaml) for a ready-to-adapt example configuration.
+
+That setup covers request intake, moderation, FAQ/autoreplies, and provider/staff routing. Classified listings,
+wallets, refunds, and external payment rails still require custom development or external services.
 
 ## 📜 Commands
 

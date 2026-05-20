@@ -76,9 +76,11 @@ export interface Category {
   msg: string;
   tag: string;
   group_id: string;
+  keywords?: string[];
   subgroups: {
     name: string;
     group_id: string;
+    keywords?: string[];
   }[];
 }
 

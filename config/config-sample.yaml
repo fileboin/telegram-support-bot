@@ -94,14 +94,18 @@ autoreply:
     answer: 'Yes.'
 # categories:
 #  - name: "Category1"
+#    keywords: ["billing", "invoice", "payment problem"]
 #    subgroups:
 #    - name: "Sub1"
 #      group_id: "-12345678910"
+#      keywords: ["refund", "chargeback"]
 #    - name: "Sub2"
 #      group_id: "-12345678910"
 #    - name: "Sub3"
 #      group_id: "-12345678910"
 #  - name: "Category2"
+#    group_id: "-12345678910"
+#    keywords: ["support", "help"]
 #    subgroups:
 #    - name: "Sub4"
 #      group_id: "-12345678910"

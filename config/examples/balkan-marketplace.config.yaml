@@ -1,0 +1,180 @@
+# Example configuration for using Telegram Support Bot as the intake layer
+# of a Balkan local marketplace and urgent request bot.
+#
+# This setup covers:
+# - keyword-based service routing
+# - moderation and manual review
+# - FAQ / LLM answers
+# - provider or city-specific dispatch groups
+#
+# It does NOT implement:
+# - classifieds storage
+# - wallet accounting
+# - voucher / PayPal / crypto payment execution
+# - automated refunds
+#
+# Replace all IDs, tokens, and policy details before production use.
+
+bot_token: 'YOUR_BOT_TOKEN'
+staffchat_id: '-1000000000000'
+staffchat_type: 'telegram'
+staffchat_parse_mode: 'MarkdownV2'
+owner_id: 'YOUR_TELEGRAM_ID'
+
+spam_cant_msg: 4
+spam_time: 600000
+
+parse_mode: 'Markdown'
+allow_private: false
+direct_reply: false
+auto_close_tickets: true
+anonymous_tickets: true
+anonymous_replies: true
+show_auto_replied: true
+show_user_ticket: true
+autoreply_confirmation: true
+clean_replies: false
+pass_start: false
+
+signal_enabled: false
+web_server: false
+dev_mode: false
+
+language:
+  startCommandText: "Welcome to Marketplace Bot. Send what you need or choose a service below."
+  faqCommandText: "Need help with urgent requests, boosts, trusted seller status, or refund options? Write your question here."
+  helpCommandText: "*Available commands:* /help /faq /id"
+  helpCommandStaffText: "*Available commands:*\n    /start - Introduction\n    /faq - FAQ\n    /open - Show open requests\n    /reopen - Reopen a closed request\n    /close - Close a request\n    /clear - Close all requests\n    /ban - Ban a user\n    /unban - Unban a user"
+  confirmationMessage: "Your request was received. A moderator or matching provider will review it shortly."
+  blockedSpam: "You have sent too many requests in a short time. Please wait for moderation before sending more."
+  ticket: "Request"
+  closed: "closed"
+  acceptedBy: "was accepted by"
+  dear: "Hi"
+  regards: "Regards,"
+  from: "from"
+  language: "language"
+  msg_sent: "Message sent to user"
+  file_sent: "File sent to user"
+  usr_with_ticket: "User with request"
+  banned: "banned"
+  replyPrivate: "Reply in private"
+  services: "Choose a category or simply type what you need, for example: AC repair Brcko, apartment Sarajevo, moving service Novi Sad"
+  customer: "customer"
+  msgForwarding: "Your message will be routed to the matching team:"
+  back: "Go back"
+  whatSubCategory: "Which option fits best?"
+  prvChatEnded: "Private chat ended."
+  prvChatOpened: "Private chat opened with customer."
+  prvChatEnd: "End private chat"
+  prvChatOpenedCustomer: "Private chat opened"
+  instructionsSent: "Instructions were sent in private chat."
+  openTickets: "Open requests"
+  support: "Support"
+  prvChatOnly: "This command can only be used in private chat."
+  ticketClosed: "Your request was closed. You can start a new one at any time."
+  links: "Direct service links"
+  textFirst: "Please send a text message before media so the team knows what you need."
+  ticketClosedError: "You cannot reply to a closed request."
+  automatedReply: "This is an automated reply."
+  automatedReplyAuthor: "Marketplace Bot"
+  doesntHelp: "This does not help."
+  automatedReplySent: "Automated reply sent to the user."
+  ticketReopened: "Request reopened."
+  regardsGroup: "Marketplace Bot Team"
+
+autoreply:
+  - question: 'trusted seller'
+    answer: "Trusted Seller is a reputation badge. Verification is handled manually by the team after profile review."
+  - question: 'refund'
+    answer: "Refund options depend on the payment method. Balance refunds are instant and full. External crypto withdrawals may include network fees. A team member will confirm the exact steps."
+  - question: 'wallet'
+    answer: "Your in-app balance can be used for boosts, pins, VIP visibility, and reposts. If you need a refund, ask here and the team will guide you."
+  - question: 'voucher'
+    answer: "We can assist with voucher-based top-ups such as X-Bon, AirCash, and local prepaid vouchers, depending on market availability."
+  - question: 'urgent'
+    answer: "For urgent requests, send the service type and city in one message, for example: plumber Sarajevo or AC repair Brcko."
+
+categories:
+  - name: "Urgent Services"
+    tag: "#urgent"
+    msg: "Describe the issue and include your city so we can notify matching providers."
+    group_id: "-1000000000001"
+    keywords: ["urgent", "today", "asap", "local help", "need help now"]
+    subgroups:
+      - name: "AC Repair"
+        group_id: "-1000000000011"
+        keywords: ["ac repair", "air conditioner", "klima", "cooling", "hvac"]
+      - name: "Electrician"
+        group_id: "-1000000000012"
+        keywords: ["electrician", "power issue", "fuse", "wiring", "struja"]
+      - name: "Plumber"
+        group_id: "-1000000000013"
+        keywords: ["plumber", "water leak", "pipe", "bathroom repair", "vodoinstalater"]
+      - name: "Transport"
+        group_id: "-1000000000014"
+        keywords: ["transport", "delivery", "pickup", "van", "prevoz"]
+      - name: "Moving Services"
+        group_id: "-1000000000015"
+        keywords: ["moving", "relocation", "selidba", "move furniture"]
+
+  - name: "Apartments"
+    tag: "#apartments"
+    msg: "Send your apartment request with city, budget, and move-in date."
+    group_id: "-1000000000002"
+    keywords: ["apartment", "flat", "stan", "rent", "garsonjera", "izdavanje"]
+    subgroups:
+      - name: "Brcko"
+        group_id: "-1000000000021"
+        keywords: ["brcko", "brko"]
+      - name: "Sarajevo"
+        group_id: "-1000000000022"
+        keywords: ["sarajevo", "sa"]
+      - name: "Banja Luka"
+        group_id: "-1000000000023"
+        keywords: ["banja luka", "bl"]
+      - name: "Novi Sad"
+        group_id: "-1000000000024"
+        keywords: ["novi sad", "ns"]
+
+  - name: "Marketplace Support"
+    tag: "#support"
+    msg: "Use this route for boosts, pin ads, VIP visibility, wallet, refund, voucher, and account questions."
+    group_id: "-1000000000003"
+    keywords: ["boost", "pin ad", "vip", "wallet", "balance", "refund", "voucher", "paypal", "crypto"]
+    subgroups: []
+
+use_llm: true
+llm_api_key: 'API_KEY'
+llm_base_url: 'https://api.openai.com/v1'
+llm_model: 'gpt-4o-mini'
+llm_knowledge: >
+  Q: What is Marketplace Bot?
+  A: Marketplace Bot is a Telegram-first local marketplace and urgent request assistant focused on Balkan users. It helps people post offers, request local services, and contact trusted providers quickly.
+
+  Q: Is posting free?
+  A: Yes. Basic posting is free. Premium options only improve visibility, speed, limits, or reputation.
+
+  Q: What premium features are available?
+  A: Premium options can include instant publish, pinned ads, VIP visibility, reposts, higher limits, and trusted seller verification.
+
+  Q: What is the urgent request system?
+  A: Users can send urgent local requests like plumber Sarajevo, AC repair Brcko, apartment Novi Sad, or moving service Banja Luka. The bot routes the request to the matching provider or moderation team.
+
+  Q: How does search work?
+  A: Users can type plain text requests such as AC repair, apartment Sarajevo, or plumber Brcko. Matching is based on configured keywords and staff routing rules.
+
+  Q: What payment methods are intended?
+  A: The product is designed for Balkan-friendly methods such as X-Bon, AirCash, local vouchers, PayPal, and optional crypto. A team member confirms the currently supported methods.
+
+  Q: How do refunds work?
+  A: Users can request either an internal balance refund or an external crypto withdrawal. Balance refunds are instant and full. External withdrawals may include blockchain network fees.
+
+  Q: What is the wallet used for?
+  A: Internal balance can be used for boosts, pinned ads, VIP visibility, and reposts. Support can explain the current balance and refund policy.
+
+  Q: What does Trusted Seller mean?
+  A: Trusted Seller and verified profiles are reputation indicators intended to reduce scams and improve confidence. Verification is handled manually by the team.
+
+  Q: Which languages are supported?
+  A: The long-term product vision includes English plus Balkan languages such as Serbian, Bosnian, Croatian, Macedonian, Albanian, Slovenian, and German for the diaspora.
