@@ -113,6 +113,7 @@ export class Config {
   web_server_port: number = 3000;
   web_server_ssl_cert: string = '';
   web_server_ssl_key: string = '';
+  web_app_url: string = '';
   dev_mode: boolean = false;
   show_user_ticket: boolean = false;
   language: Language;
@@ -127,6 +128,13 @@ export class Config {
   llm_base_url: string;
   llm_model: string;
   llm_knowledge: string;
+  marketplace_enabled: boolean = true;
+  marketplace_lead_fee: number = 0.5;
+  marketplace_currency: string = 'EUR';
+  marketplace_request_categories: string[] = [];
+  marketplace_cities: string[] = [];
+  marketplace_listing_categories: string[] = [];
+  telegram_payment_provider_token: string = '';
 }
 
 export interface Cache {

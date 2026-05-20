@@ -14,6 +14,9 @@ export function registerCommonHandlers(addon: any, keys?: any) {
   addon.command('reopen', (ctx: any) => commands.reopenCommand(ctx));
   addon.command('unban', (ctx: any) => commands.unbanCommand(ctx));
   addon.command('clear', (ctx: any) => commands.clearCommand(ctx));
+  addon.command('leadfee', (ctx: any) => commands.leadFeeCommand(ctx));
+  addon.command('setleadfee', (ctx: any) => commands.setLeadFeeCommand(ctx));
+  addon.command('miniapp', (ctx: any) => commands.miniAppCommand(ctx));
 
   addon.command('id', (ctx: any) =>
     middleware.reply(ctx, `User ID: ${ctx.from.id}\nGroup ID: ${ctx.chat.id}`, {

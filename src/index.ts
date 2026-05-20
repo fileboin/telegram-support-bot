@@ -6,6 +6,7 @@ import * as db from './db';
 import * as error from './error';
 import TelegramAddon from './addons/telegram';
 import SignalAddon from './addons/signal';
+import * as webserver from './addons/web';
 import * as log from 'fancy-log'
 
 /**
@@ -72,7 +73,7 @@ async function main(logs = true) {
   // Initialize the webserver if enabled and if there's a Telegram addon.
   const telegramAddon = addons.find((addon) => (addon as any).platform === 'telegram');
   if (cache.config.web_server && telegramAddon) {
-    // webserver.init(telegramAddon);
+    webserver.init(telegramAddon as TelegramAddon);
   }
 
   // Initialize global error handling.
