@@ -137,6 +137,8 @@ export class Config {
   marketplace_cities: string[] = [];
   marketplace_listing_categories: string[] = [];
   marketplace_voucher_providers: string[] = [];
+  marketplace_request_daily_limit: number = 5;
+  marketplace_request_expiry_hours: number = 24;
   mt_pelerin_url: string = '';
   telegram_payment_provider_token: string = '';
 }
@@ -184,6 +186,12 @@ export class Context {
     };
     external_reply: {
       message_id: number,
+    },
+    contact?: {
+      phone_number: string;
+      first_name?: string;
+      last_name?: string;
+      user_id?: string | number;
     },
     getFile?: any;
     caption: string;

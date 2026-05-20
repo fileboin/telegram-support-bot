@@ -46,6 +46,14 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
           <div class="rounded-3xl bg-slate-900 border border-slate-800 p-5 xl:col-span-1">
             <h2 class="text-xl font-bold mb-1">Pošalji hitan zahtev</h2>
             <p class="text-slate-400 text-sm mb-4">Klijent upisuje naslov, grad i napomenu. Sistem prosleđuje zahtev relevantnim provajderima.</p>
+            <div class="rounded-2xl bg-slate-950 border border-slate-800 p-4 mb-4 space-y-3">
+              <div>
+                <div class="text-xs uppercase tracking-widest text-slate-500">Posting policy</div>
+                <div id="phoneVerificationStatus" class="text-sm text-slate-200 mt-2">Telefon nije verifikovan</div>
+                <div id="requestPolicyHint" class="text-xs text-slate-400 mt-2"></div>
+              </div>
+              <button type="button" id="verifyPhoneButton" class="w-full rounded-2xl border border-slate-700 px-4 py-3 text-sm font-semibold">Verifikuj telefon u Telegramu</button>
+            </div>
             <form id="requestForm" class="space-y-4">
               <div>
                 <label class="block text-sm text-slate-300 mb-2">Naslov zahteva</label>
@@ -252,6 +260,10 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
               <h2 class="text-xl font-bold mb-4">Balance log audit</h2>
               <div id="adminBalanceLogs" class="space-y-3"></div>
             </div>
+            <div class="rounded-3xl bg-slate-900 border border-slate-800 p-5">
+              <h2 class="text-xl font-bold mb-4">Transaction history</h2>
+              <div id="adminTransactionLogs" class="space-y-3"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -312,6 +324,15 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
         return (currency === 'EUR' ? '€' : (currency + ' ')) + Number(amount || 0).toFixed(2);
       }
 
+      function formatDate(value) {
+        if (!value) return '';
+        try {
+          return new Date(value).toLocaleString('sr-RS');
+        } catch (_error) {
+          return String(value);
+        }
+      }
+
       function setActiveTab(tabName) {
         state.activeTab = tabName;
         document.querySelectorAll('.tab-button').forEach(function (button) {
@@ -360,8 +381,13 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
           .replace(/'/g, '&#39;');
       }
 
-      function requestCard(item, adminMode) {
-        var statusColor = item.status === 'matched' ? 'text-emerald-300' : 'text-sky-300';
+      function requestCard(item, mode) {
+        var adminMode = mode === 'admin';
+        var clientMode = mode === 'client';
+        var providerMode = mode === 'provider';
+        var statusColor = item.status === 'matched'
+          ? 'text-emerald-300'
+          : (item.status === 'expired' ? 'text-amber-300' : (item.status === 'closed' ? 'text-slate-400' : 'text-sky-300'));
         var lead = item.lead || null;
         var leadMeta = lead ? '<div class="mt-3 rounded-2xl bg-slate-950 border border-slate-800 p-3 text-sm">' +
           '<div class="font-semibold text-slate-200">Lead info</div>' +
@@ -375,36 +401,46 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
           '<div>' + escapeHtml(item.contact.label) + '</div>' +
           '<a class="text-emerald-300 underline" target="_blank" href="' + escapeHtml(item.contact.telegramUrl) + '">Otvori kontakt</a>' +
           '</div>' : '';
-        var acceptButton = !adminMode && item.leadUnlocked !== true && item.status === 'open'
+        var acceptButton = providerMode && item.leadUnlocked !== true && item.status === 'open'
           ? '<button data-checkout="' + item._id + '" class="mt-3 w-full rounded-2xl bg-violet-500 px-4 py-3 font-semibold">Accept & Pay ' + escapeHtml(document.getElementById('leadFeeValue').textContent) + ' to unlock contact</button>'
           : '';
-        var refundButtons = !adminMode && lead && item.leadUnlocked
+        var refundButtons = providerMode && lead && item.leadUnlocked
           ? '<div class="mt-3 flex flex-wrap gap-2">' +
             '<button data-request-refund-internal="' + lead._id + '" class="rounded-xl border border-slate-700 px-3 py-2 text-sm">Request internal refund</button>' +
             '<button data-request-refund-crypto="' + lead._id + '" class="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-100">Request crypto refund</button>' +
             '</div>'
+          : '';
+        var clientCloseButton = clientMode && (item.status === 'open' || item.status === 'matched')
+          ? '<button data-close-request="' + item._id + '" class="mt-3 w-full rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 font-semibold text-amber-100">Close Request / Found Option</button>'
           : '';
         var adminActions = adminMode ? '<div class="mt-3 flex flex-wrap gap-2">' +
           '<button data-edit-request="' + item._id + '" class="rounded-xl border border-slate-700 px-3 py-2 text-sm">Izmeni</button>' +
           '<button data-delete-request="' + item._id + '" class="rounded-xl bg-red-500/20 border border-red-500/30 px-3 py-2 text-sm text-red-200">Obriši</button>' +
           '</div>' : '';
         var adminRefundButtons = adminMode && lead && lead._id &&
-          lead.refund_status !== 'approved_internal' && lead.refund_status !== 'approved_crypto'
+          (lead.refund_status === 'requested_internal' || lead.refund_status === 'requested_crypto')
           ? '<div class="mt-3 flex flex-wrap gap-2">' +
             '<button data-approve-refund-internal="' + lead._id + '" class="rounded-xl bg-emerald-500/20 border border-emerald-500/30 px-3 py-2 text-sm text-emerald-100">Approve Refund: Internal</button>' +
             '<button data-approve-refund-crypto="' + lead._id + '" class="rounded-xl bg-cyan-500/20 border border-cyan-500/30 px-3 py-2 text-sm text-cyan-100">Approve Refund: Crypto</button>' +
             '</div>'
           : '';
+        var lifecycleMeta = [
+          item.expiresAt ? ('Ističe: ' + formatDate(item.expiresAt)) : '',
+          item.closedAt ? ('Zatvoreno: ' + formatDate(item.closedAt)) : '',
+          item.closeReason ? ('Razlog: ' + escapeHtml(item.closeReason)) : ''
+        ].filter(Boolean).join(' • ');
         return '<div class="rounded-3xl border border-slate-800 bg-slate-900 p-4">' +
           '<div class="flex items-start justify-between gap-3">' +
           '<div><div class="font-semibold text-lg">' + escapeHtml(item.title) + '</div>' +
           '<div class="text-sm text-slate-400">' + escapeHtml(item.category) + ' • ' + escapeHtml(item.city) + '</div></div>' +
           '<div class="text-xs uppercase tracking-wider ' + statusColor + '">' + escapeHtml(item.status) + '</div></div>' +
           '<div class="text-sm text-slate-300 mt-3">' + escapeHtml(item.notes || 'Bez dodatnih napomena.') + '</div>' +
+          (lifecycleMeta ? '<div class="text-xs text-slate-500 mt-3">' + lifecycleMeta + '</div>' : '') +
           leadMeta +
           contactBlock +
           acceptButton +
           refundButtons +
+          clientCloseButton +
           adminActions +
           adminRefundButtons +
           '</div>';
@@ -447,6 +483,17 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
           '</div>';
       }
 
+      function transactionLogCard(item) {
+        var directionColor = item.direction === 'credit' ? 'text-emerald-300' : 'text-amber-300';
+        return '<div class="rounded-2xl border border-slate-800 bg-slate-950 p-3">' +
+          '<div class="flex items-start justify-between gap-3">' +
+          '<div><div class="font-semibold">' + escapeHtml(item.type) + '</div>' +
+          '<div class="text-sm text-slate-400">' + escapeHtml(item.note || '') + '</div></div>' +
+          '<div class="text-sm font-semibold ' + directionColor + '">' + escapeHtml(money(item.amount, item.currency || 'EUR')) + '</div></div>' +
+          '<div class="text-xs text-slate-500 mt-2">Status: ' + escapeHtml(item.status || '-') + ' • ' + escapeHtml(formatDate(item.createdAt)) + '</div>' +
+          '</div>';
+      }
+
       function renderStats(stats) {
         var container = document.getElementById('dashboardStats');
         container.innerHTML = '';
@@ -471,11 +518,11 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
       function renderLists() {
         var data = state.bootstrap;
         document.getElementById('myRequests').innerHTML = data.myRequests.length
-          ? data.myRequests.map(function (item) { return requestCard(item, false); }).join('')
+          ? data.myRequests.map(function (item) { return requestCard(item, 'client'); }).join('')
           : '<div class="rounded-3xl border border-dashed border-slate-700 p-5 text-slate-400">Još nema zahteva.</div>';
 
         document.getElementById('providerRequests').innerHTML = data.providerRequests.length
-          ? data.providerRequests.map(function (item) { return requestCard(item, false); }).join('')
+          ? data.providerRequests.map(function (item) { return requestCard(item, 'provider'); }).join('')
           : '<div class="rounded-3xl border border-dashed border-slate-700 p-5 text-slate-400">Nema aktivnih matching zahteva za tvoj profil.</div>';
 
         document.getElementById('allListings').innerHTML = data.listings.length
@@ -488,7 +535,7 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
 
         if (data.admin) {
           document.getElementById('adminRequests').innerHTML = data.adminRequests.length
-            ? data.adminRequests.map(function (item) { return requestCard(item, true); }).join('')
+            ? data.adminRequests.map(function (item) { return requestCard(item, 'admin'); }).join('')
             : '<div class="rounded-3xl border border-dashed border-slate-700 p-5 text-slate-400">Nema zahteva za moderaciju.</div>';
 
           document.getElementById('adminListings').innerHTML = data.adminListings.length
@@ -502,6 +549,10 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
           document.getElementById('adminBalanceLogs').innerHTML = data.adminBalanceLogs.length
             ? data.adminBalanceLogs.map(function (item) { return balanceLogCard(item); }).join('')
             : '<div class="rounded-3xl border border-dashed border-slate-700 p-5 text-slate-400">Nema balance log zapisa.</div>';
+
+          document.getElementById('adminTransactionLogs').innerHTML = data.transactionLogs.length
+            ? data.transactionLogs.map(function (item) { return transactionLogCard(item); }).join('')
+            : '<div class="rounded-3xl border border-dashed border-slate-700 p-5 text-slate-400">Nema transaction history zapisa.</div>';
         }
       }
 
@@ -512,6 +563,12 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
         document.getElementById('walletBalanceInline').textContent = money(data.wallet.balance || 0, data.wallet.currency || data.settings.currency);
         document.getElementById('userRoleBadge').textContent = data.admin ? 'Admin' : (data.providerProfile ? 'Provajder / Korisnik' : 'Korisnik');
         document.getElementById('adminTabButton').classList.toggle('hidden', !data.admin);
+        document.getElementById('phoneVerificationStatus').textContent = data.phoneVerification && data.phoneVerification.verified
+          ? ('Telefon verifikovan: ' + (data.phoneVerification.phoneNumberMasked || 'OK'))
+          : 'Telefon nije verifikovan. Pre objave zahteva potrebno je završiti Telegram phone verification.';
+        document.getElementById('requestPolicyHint').textContent =
+          'Maksimalno ' + data.settings.requestDailyLimit + ' aktivnih zahteva u 24h. Svaki zahtev automatski ističe za ' +
+          data.settings.requestExpiryHours + 'h ako ga ranije ne zatvorite.';
 
         renderSelectOptions('requestCategory', data.options.requestCategories);
         renderSelectOptions('requestCity', data.options.cities);
@@ -525,6 +582,12 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
         var mtPelerinButton = document.getElementById('mtPelerinButton');
         mtPelerinButton.classList.toggle('hidden', !data.settings.mtPelerinUrl);
         mtPelerinButton.setAttribute('data-url', data.settings.mtPelerinUrl || '');
+        var verifyPhoneButton = document.getElementById('verifyPhoneButton');
+        verifyPhoneButton.classList.toggle('hidden', Boolean(data.phoneVerification && data.phoneVerification.verified));
+        verifyPhoneButton.setAttribute(
+          'data-url',
+          data.botUsername ? ('https://t.me/' + data.botUsername + '?start=verifyphone') : ''
+        );
 
         if (data.admin) {
           document.querySelector('#settingsForm input[name="leadFee"]').value = data.settings.leadFee;
@@ -598,6 +661,10 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
 
       document.getElementById('requestForm').addEventListener('submit', function (event) {
         event.preventDefault();
+        if (!state.bootstrap.phoneVerification || !state.bootstrap.phoneVerification.verified) {
+          notify('Pre objave zahteva morate verifikovati Telegram telefon.', 'error');
+          return;
+        }
         var form = new FormData(event.target);
         api('/api/requests', {
           method: 'POST',
@@ -717,6 +784,15 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
           return;
         }
 
+        if (target.id === 'verifyPhoneButton' && mtPelerinUrl) {
+          if (tg && typeof tg.openTelegramLink === 'function') {
+            tg.openTelegramLink(mtPelerinUrl);
+          } else {
+            window.open(mtPelerinUrl, '_blank');
+          }
+          return;
+        }
+
         var checkoutId = target.getAttribute('data-checkout');
         if (checkoutId) {
           api('/api/requests/' + checkoutId + '/checkout', { method: 'POST' })
@@ -752,6 +828,20 @@ const renderMiniAppHtml = (appName: string = 'Marketplace Bot'): string => `<!DO
             body: JSON.stringify({ method: 'internal' })
           }).then(function () {
             notify('Interni refund zahtev je poslat adminu.');
+            return loadBootstrap();
+          }).catch(function (error) {
+            notify(error.message, 'error');
+          });
+          return;
+        }
+
+        var closeRequestId = target.getAttribute('data-close-request');
+        if (closeRequestId && window.confirm('Zatvoriti zahtev jer ste našli opciju?')) {
+          api('/api/requests/' + closeRequestId + '/close', {
+            method: 'POST',
+            body: JSON.stringify({ reason: 'found_option' })
+          }).then(function () {
+            notify('Zahtev je zatvoren i više se ne prikazuje drugim provajderima.');
             return loadBootstrap();
           }).catch(function (error) {
             notify(error.message, 'error');

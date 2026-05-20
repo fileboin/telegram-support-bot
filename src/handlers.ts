@@ -17,6 +17,7 @@ export function registerCommonHandlers(addon: any, keys?: any) {
   addon.command('leadfee', (ctx: any) => commands.leadFeeCommand(ctx));
   addon.command('setleadfee', (ctx: any) => commands.setLeadFeeCommand(ctx));
   addon.command('miniapp', (ctx: any) => commands.miniAppCommand(ctx));
+  addon.command('verifyphone', (ctx: any) => commands.verifyPhoneCommand(ctx));
 
   addon.command('id', (ctx: any) =>
     middleware.reply(ctx, `User ID: ${ctx.from.id}\nGroup ID: ${ctx.chat.id}`, {
@@ -64,6 +65,13 @@ export function registerCommonHandlers(addon: any, keys?: any) {
   if (cache.config.pass_start === false) {
     addon.command('start', (ctx: any) => {
       if (ctx.chat.type === 'private') {
+        const startArgument = typeof ctx.match === 'string'
+          ? ctx.match.trim().toLowerCase()
+          : ((ctx.message?.text || '').split(/\s+/).slice(1).join(' ').trim().toLowerCase());
+        if (startArgument === 'verifyphone' || startArgument === 'verify-phone') {
+          commands.verifyPhoneCommand(ctx);
+          return;
+        }
         middleware.reply(ctx, cache.config.language.startCommandText);
         if (cache.config.categories && cache.config.categories.length > 0) {
           // For Telegram, use inline keyboard keys if available.
@@ -88,6 +96,9 @@ export function registerCommonHandlers(addon: any, keys?: any) {
   addon.on([':photo'], (ctx: any) => files.fileHandler('photo', addon, ctx));
   addon.on([':video'], (ctx: any) => files.fileHandler('video', addon, ctx));
   addon.on([':document'], (ctx: any) => files.fileHandler('document', addon, ctx));
+  if (addon.platform === 'telegram') {
+    addon.on([':contact'], (ctx: any) => commands.verifyPhoneContactCommand(ctx));
+  }
 
   // Register generic text handlers.
   addon.hears(cache.config.language.back, (ctx: any) => {

@@ -7,21 +7,25 @@ import * as log from 'fancy-log';
 import {
   approveLeadRefundCrypto,
   approveLeadRefundInternal,
+  closeMarketplaceRequest,
   createLeadCheckout,
   createListing,
   createMarketplaceRequest,
   createVoucher,
   deleteListing,
   deleteMarketplaceRequest,
+  expireMarketplaceRequests,
   getAdminDashboardSummary,
   getLeadById,
   getMarketplaceOptions,
   getMarketplaceSettings,
+  getPhoneVerificationSummary,
   getProviderProfile,
   getWalletSummary,
   listAllBalanceLogs,
   listAllListings,
   listAllRequests,
+  listAllTransactionLogs,
   listAllVouchers,
   listClientRequests,
   listListings,
@@ -97,16 +101,20 @@ const init = function(_bot: TelegramAddon) {
         listListings(),
       ]);
       const walletSummary = await getWalletSummary(req.user.id);
+      const phoneVerification = await getPhoneVerificationSummary(req.user.id);
 
       const response: any = {
         user: req.user,
         admin: req.isAdmin,
+        botUsername: _bot.botInfo?.username || '',
         settings: {
           leadFee: settings.leadFee,
           currency: settings.currency,
           mtPelerinUrl: settings.mtPelerinUrl,
           cryptoRefundFee: settings.cryptoRefundFee,
           cryptoRefundChain: settings.cryptoRefundChain,
+          requestDailyLimit: cache.config.marketplace_request_daily_limit || 5,
+          requestExpiryHours: cache.config.marketplace_request_expiry_hours || 24,
         },
         options: getMarketplaceOptions(),
         providerProfile,
@@ -115,21 +123,24 @@ const init = function(_bot: TelegramAddon) {
         listings,
         wallet: walletSummary.wallet,
         balanceLogs: walletSummary.balanceLogs,
+        phoneVerification,
       };
 
       if (req.isAdmin) {
-        const [dashboard, adminRequests, adminListings, vouchers, adminBalanceLogs] = await Promise.all([
+        const [dashboard, adminRequests, adminListings, vouchers, adminBalanceLogs, transactionLogs] = await Promise.all([
           getAdminDashboardSummary(),
           listAllRequests(),
           listAllListings(),
           listAllVouchers(),
           listAllBalanceLogs(),
+          listAllTransactionLogs(),
         ]);
         response.dashboard = dashboard;
         response.adminRequests = adminRequests;
         response.adminListings = adminListings;
         response.vouchers = vouchers;
         response.adminBalanceLogs = adminBalanceLogs;
+        response.transactionLogs = transactionLogs;
       }
 
       res.json(response);
@@ -196,6 +207,19 @@ const init = function(_bot: TelegramAddon) {
     try {
       const result = await createLeadCheckout(req.user, req.params.id);
       res.json(result);
+    } catch (error) {
+      serializeError(res, error);
+    }
+  });
+
+  app.post('/api/requests/:id/close', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      const request = await closeMarketplaceRequest(
+        req.params.id,
+        req.user.id,
+        (req.body?.reason || 'found_option').toString()
+      );
+      res.json(request);
     } catch (error) {
       serializeError(res, error);
     }
@@ -303,6 +327,19 @@ const init = function(_bot: TelegramAddon) {
       serializeError(res, error);
     }
   });
+
+  expireMarketplaceRequests().catch((error: any) => {
+    log.error('Failed initial marketplace expiry sweep:', error);
+  });
+
+  const expirySweep = setInterval(() => {
+    expireMarketplaceRequests().catch((error: any) => {
+      log.error('Failed to expire marketplace requests:', error);
+    });
+  }, 5 * 60 * 1000);
+  if (typeof (expirySweep as any).unref === 'function') {
+    (expirySweep as any).unref();
+  }
 
   server.listen(port, () => log.info(`Marketplace Mini App server started on port ${port}`));
 };
