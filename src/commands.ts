@@ -3,6 +3,7 @@ import cache from './cache';
 import * as middleware from './middleware';
 import { Context } from './interfaces';
 import { ISupportee } from './db';
+import { getMarketplaceSettings, parseLeadFeeInput, setMarketplaceLeadFee } from './addons/marketplace';
 import * as log from 'fancy-log'
 
 /**
@@ -199,6 +200,58 @@ const unbanCommand = (ctx: Context): void => {
   });
 };
 
+/**
+ * Show the current marketplace lead fee.
+ *
+ * @param ctx - The bot context.
+ */
+const leadFeeCommand = async (ctx: Context): Promise<void> => {
+  if (!ctx.session.admin) return;
+  const settings = await getMarketplaceSettings();
+  middleware.reply(
+    ctx,
+    `Current lead fee: ${settings.currency === 'EUR' ? '€' : `${settings.currency} `}${settings.leadFee.toFixed(2)}`
+  );
+};
+
+/**
+ * Update the marketplace lead fee.
+ *
+ * @param ctx - The bot context.
+ */
+const setLeadFeeCommand = async (ctx: Context): Promise<void> => {
+  if (!ctx.session.admin) return;
+  const input = (ctx.message.text || '').split(/\s+/).slice(1).join(' ');
+  const fee = parseLeadFeeInput(input);
+  if (fee === null) {
+    middleware.reply(ctx, 'Usage: /setleadfee 0.50');
+    return;
+  }
+  const settings = await setMarketplaceLeadFee(fee, ctx.from.id.toString());
+  middleware.reply(
+    ctx,
+    `Lead fee updated to ${settings.currency === 'EUR' ? '€' : `${settings.currency} `}${settings.leadFee.toFixed(2)}`
+  );
+};
+
+/**
+ * Share the Mini App entry point.
+ *
+ * @param ctx - The bot context.
+ */
+const miniAppCommand = (ctx: Context): void => {
+  if (!cache.config.web_app_url) {
+    middleware.reply(ctx, 'Mini App URL is not configured yet.');
+    return;
+  }
+  middleware.reply(ctx, 'Open the Marketplace Mini App.', {
+    parse_mode: cache.config.parse_mode,
+    reply_markup: {
+      inline_keyboard: [[{ text: 'Open Mini App', web_app: { url: cache.config.web_app_url } }]],
+    },
+  });
+};
+
 export {
   banCommand,
   openCommand,
@@ -207,4 +260,7 @@ export {
   clearCommand,
   reopenCommand,
   helpCommand,
+  leadFeeCommand,
+  setLeadFeeCommand,
+  miniAppCommand,
 };

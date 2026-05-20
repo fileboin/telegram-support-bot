@@ -4,6 +4,7 @@ import { apiThrottler } from '@grammyjs/transformer-throttler';
 import * as middleware from '../../middleware';
 import * as permissions from '../../permissions';
 import * as inline from '../../inline';
+import { handleSuccessfulPayment } from '../marketplace';
 import cache from '../../cache';
 import { registerCommonHandlers } from '../../handlers';
 import * as log from 'fancy-log'
@@ -122,6 +123,12 @@ class TelegramAddon implements Addon {
 
     const keys = inline.initInline(this);
     registerCommonHandlers(this, keys);
+    this.bot.on('pre_checkout_query', async (ctx: any) => {
+      await ctx.answerPreCheckoutQuery(true);
+    });
+    this.bot.on(':successful_payment', async (ctx: any) => {
+      await handleSuccessfulPayment(ctx);
+    });
 
     // Start the Bot.
     this.bot.start();

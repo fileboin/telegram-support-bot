@@ -2,6 +2,9 @@
 const mockReply = jest.fn();
 const mockSendMessage = jest.fn();
 const mockCloseAll = jest.fn();
+const mockGetMarketplaceSettings = jest.fn();
+const mockSetMarketplaceLeadFee = jest.fn();
+const mockParseLeadFeeInput = jest.fn();
 
 jest.mock('../src/middleware', () => ({
   reply: mockReply,
@@ -21,6 +24,7 @@ jest.mock('../src/db', () => ({
 
 jest.mock('../src/cache', () => ({
   config: {
+    web_app_url: 'https://example.com/app',
     language: {
       helpCommandText: 'Help: /start, /help',
       helpCommandStaffText: 'Staff: /clear, /open, /close',
@@ -33,6 +37,12 @@ jest.mock('../src/cache', () => ({
   ticketSent: [],
 }));
 
+jest.mock('../src/addons/marketplace', () => ({
+  getMarketplaceSettings: mockGetMarketplaceSettings,
+  setMarketplaceLeadFee: mockSetMarketplaceLeadFee,
+  parseLeadFeeInput: mockParseLeadFeeInput,
+}));
+
 import * as commands from '../src/commands';
 import { Context, Messenger } from '../src/interfaces';
 import cache from '../src/cache';
@@ -40,6 +50,9 @@ import cache from '../src/cache';
 describe('Commands Module', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetMarketplaceSettings.mockResolvedValue({ currency: 'EUR', leadFee: 0.5 });
+    mockSetMarketplaceLeadFee.mockResolvedValue({ currency: 'EUR', leadFee: 0.75 });
+    mockParseLeadFeeInput.mockImplementation((value: string) => Number(value));
     // Reset cache arrays
     cache.ticketIDs.length = 0;
     cache.ticketStatus.length = 0;
@@ -224,6 +237,44 @@ describe('Commands Module', () => {
 
       expect(() => commands.closeCommand(ctx)).not.toThrow();
       expect(() => commands.reopenCommand(ctx)).not.toThrow();
+    });
+  });
+
+  describe('marketplace commands', () => {
+    it('should show the current lead fee for admins', async () => {
+      const ctx = createMockContext(true);
+
+      await commands.leadFeeCommand(ctx);
+
+      expect(mockGetMarketplaceSettings).toHaveBeenCalled();
+      expect(mockReply).toHaveBeenCalledWith(ctx, 'Current lead fee: €0.50');
+    });
+
+    it('should update the lead fee for admins', async () => {
+      const ctx = createMockContext(true);
+      ctx.message.text = '/setleadfee 0.75';
+
+      await commands.setLeadFeeCommand(ctx);
+
+      expect(mockParseLeadFeeInput).toHaveBeenCalledWith('0.75');
+      expect(mockSetMarketplaceLeadFee).toHaveBeenCalledWith(0.75, 'user123');
+      expect(mockReply).toHaveBeenCalledWith(ctx, 'Lead fee updated to €0.75');
+    });
+
+    it('should share the mini app URL', () => {
+      const ctx = createMockContext(true);
+
+      commands.miniAppCommand(ctx);
+
+      expect(mockReply).toHaveBeenCalledWith(
+        ctx,
+        'Open the Marketplace Mini App.',
+        expect.objectContaining({
+          reply_markup: {
+            inline_keyboard: [[{ text: 'Open Mini App', web_app: { url: 'https://example.com/app' } }]],
+          },
+        })
+      );
     });
   });
 });

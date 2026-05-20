@@ -37,14 +37,45 @@ clean_replies: false
 pass_start: false
 
 signal_enabled: false
-web_server: false
+web_server: true
+web_server_port: 8080
+web_app_url: 'https://your-domain.example.com'
+marketplace_enabled: true
+marketplace_lead_fee: 0.50
+marketplace_currency: 'EUR'
+telegram_payment_provider_token: ''
+marketplace_request_categories:
+  - 'Stan na dan'
+  - 'Tražim pomoć'
+  - 'Vodoinstalater'
+  - 'Električar'
+  - 'Selidba'
+  - 'Prevoz'
+  - 'Čišćenje'
+  - 'Ostalo'
+marketplace_cities:
+  - 'Beograd'
+  - 'Novi Sad'
+  - 'Niš'
+  - 'Kragujevac'
+  - 'Subotica'
+  - 'Sarajevo'
+  - 'Banja Luka'
+  - 'Tuzla'
+  - 'Brčko'
+  - 'Podgorica'
+  - 'Skoplje'
+marketplace_listing_categories:
+  - 'Auto'
+  - 'Nekretnine'
+  - 'Razno'
 dev_mode: false
 
 language:
   startCommandText: "Welcome to Marketplace Bot. Send what you need or choose a service below."
   faqCommandText: "Need help with urgent requests, boosts, trusted seller status, or refund options? Write your question here."
-  helpCommandText: "*Available commands:* /help /faq /id"
-  helpCommandStaffText: "*Available commands:*\n    /start - Introduction\n    /faq - FAQ\n    /open - Show open requests\n    /reopen - Reopen a closed request\n    /close - Close a request\n    /clear - Close all requests\n    /ban - Ban a user\n    /unban - Unban a user"
+  helpCommandText: "*Available commands:* /help /faq /id /miniapp"
+  helpCommandStaffText: "*Available commands:*\n    /start - Introduction\n    /faq - FAQ\n    /open - Show open requests\n    /reopen - Reopen a closed request\n    /close - Close a request\n    /clear - Close all requests\n    /ban - Ban a user\n    /leadfee - Show current lead fee\n    /setleadfee 0.50 - Update lead fee\n    /unban - Unban a user"
   confirmationMessage: "Your request was received. A moderator or matching provider will review it shortly."
   blockedSpam: "You have sent too many requests in a short time. Please wait for moderation before sending more."
   ticket: "Request"
