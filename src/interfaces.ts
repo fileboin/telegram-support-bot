@@ -131,9 +131,13 @@ export class Config {
   marketplace_enabled: boolean = true;
   marketplace_lead_fee: number = 0.5;
   marketplace_currency: string = 'EUR';
+  marketplace_crypto_refund_fee: number = 0.03;
+  marketplace_crypto_refund_chain: string = 'Polygon';
   marketplace_request_categories: string[] = [];
   marketplace_cities: string[] = [];
   marketplace_listing_categories: string[] = [];
+  marketplace_voucher_providers: string[] = [];
+  mt_pelerin_url: string = '';
   telegram_payment_provider_token: string = '';
 }
 
