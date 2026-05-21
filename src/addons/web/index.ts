@@ -78,7 +78,7 @@ const init = function(_bot: TelegramAddon) {
   });
 
   const app = express();
-  const port = cache.config.web_server_port || 8080;
+  const port = Number(process.env.PORT || cache.config.web_server_port || 8080);
   const server = http.createServer(app);
 
   app.use(limiter);
