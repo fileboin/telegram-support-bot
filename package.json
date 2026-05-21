@@ -14,11 +14,11 @@
     },
     "main": "build/index.js",
     "scripts": {
-        "tsc": "tsc",
+        "tsc": "tsc -p ./tsconfig.json",
         "dev": "NODE_ENV=development ts-node-dev ./src/index.ts",
         "start": "NODE_ENV=production node ./build/index.js",
         "prod": "npm run build && npm run start",
-        "build": "npm run tsc",
+        "build": "tsc -p ./tsconfig.json",
         "test": "NODE_ENV=test jest --detectOpenHandles --forceExit --runInBand"
     },
     "engines": {
