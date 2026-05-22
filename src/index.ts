@@ -59,10 +59,32 @@ function createAddons(): Addon[] {
   return addons;
 }
 
+function logStartupConfigurationSummary() {
+  const hasMongoUri = Boolean(cache.config.mongodb_uri || process.env.MONGODB_URI || process.env.MONGO_URI);
+  const hasDatabaseUrl = Boolean(cache.config.database_url || process.env.DATABASE_URL);
+  const hasBotToken = Boolean(cache.config.bot_token);
+  const hasAdminId = Boolean(cache.config.owner_id);
+  const declaredPort = process.env.PORT || cache.config.web_server_port || 8080;
+
+  log.info(
+    [
+      'Startup config summary:',
+      `bot_token=${hasBotToken ? 'set' : 'missing'}`,
+      `admin_id=${hasAdminId ? 'set' : 'missing'}`,
+      `mongodb_uri=${hasMongoUri ? 'set' : 'missing'}`,
+      `database_url=${hasDatabaseUrl ? 'set' : 'missing'}`,
+      `web_server=${cache.config.web_server ? 'enabled' : 'disabled'}`,
+      `marketplace=${cache.config.marketplace_enabled ? 'enabled' : 'disabled'}`,
+      `port=${declaredPort}`,
+    ].join(' ')
+  );
+}
+
 /**
  * Main initialization function.
  */
 async function main(logs = true) {
+  logStartupConfigurationSummary();
   await db.connect();
   await checkAndMigrateDatabase();
 

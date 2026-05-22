@@ -3,8 +3,10 @@ import cache from './cache';
 import { Messenger } from './interfaces';
 import * as log from 'fancy-log'
 
-const getMongoUri = (): string =>
-  cache.config.mongodb_uri || process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/support';
+const getConfiguredMongoUri = (): string =>
+  cache.config.mongodb_uri || process.env.MONGODB_URI || process.env.MONGO_URI || '';
+
+const getMongoUri = (): string => getConfiguredMongoUri() || 'mongodb://localhost:27017/support';
 
 const botTokenSuffix = (cache.config.bot_token || 'token').slice(-5);
 const collectionName = `bot_${cache.config.owner_id || 'owner'}_${botTokenSuffix}`;
@@ -33,11 +35,19 @@ const Supportee = mongoose.model(collectionName, SupporteeSchema);
 
 export async function connect() {
   const configuredDatabaseUrl = cache.config.database_url || process.env.DATABASE_URL || '';
+  const configuredMongoUri = getConfiguredMongoUri();
+
   if (configuredDatabaseUrl && !/^mongodb(\+srv)?:\/\//i.test(configuredDatabaseUrl)) {
     log.warn(
       'DATABASE_URL is configured with a non-MongoDB connection string. ' +
       'This app still uses MongoDB/Mongoose internally, so Neon/PostgreSQL schema sync is not supported yet.'
     );
+    if (!configuredMongoUri) {
+      throw new Error(
+        'PostgreSQL/Neon DATABASE_URL detected, but no MongoDB connection is configured. ' +
+        'Set MONGODB_URI (or mongodb_uri in config) for the current app runtime.'
+      );
+    }
   }
 
   mongoose.connection.on('open', () => {

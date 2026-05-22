@@ -43,6 +43,22 @@ const parseOptionalNumber = (value?: string): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const parseOptionalBoolean = (value?: string): boolean | null => {
+  if (typeof value !== 'string' || !value.trim()) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (['true', '1', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+  if (['false', '0', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+
+  return null;
+};
+
 const applyEnvironmentOverrides = (config: Config, env: Record<string, string>): Config => {
   const runtimeEnv = { ...env, ...process.env };
   const nextConfig = {
@@ -62,6 +78,30 @@ const applyEnvironmentOverrides = (config: Config, env: Record<string, string>):
   const leadFeeFromEnv = parseOptionalNumber(runtimeEnv.DEFAULT_LEAD_FEE_EUR);
   if (leadFeeFromEnv !== null) {
     nextConfig.marketplace_lead_fee = leadFeeFromEnv;
+  }
+
+  const webServerFromEnv = parseOptionalBoolean(runtimeEnv.WEB_SERVER);
+  if (webServerFromEnv !== null) {
+    nextConfig.web_server = webServerFromEnv;
+  }
+
+  const devModeFromEnv = parseOptionalBoolean(runtimeEnv.DEV_MODE);
+  if (devModeFromEnv !== null) {
+    nextConfig.dev_mode = devModeFromEnv;
+  }
+
+  const webServerPortFromEnv = parseOptionalNumber(runtimeEnv.WEB_SERVER_PORT);
+  if (webServerPortFromEnv !== null) {
+    nextConfig.web_server_port = webServerPortFromEnv;
+  }
+
+  const marketplaceEnabledFromEnv = parseOptionalBoolean(runtimeEnv.MARKETPLACE_ENABLED);
+  if (marketplaceEnabledFromEnv !== null) {
+    nextConfig.marketplace_enabled = marketplaceEnabledFromEnv;
+  }
+
+  if (runtimeEnv.WEB_APP_URL) {
+    nextConfig.web_app_url = runtimeEnv.WEB_APP_URL;
   }
 
   if (runtimeEnv.DATABASE_URL) {
@@ -85,4 +125,5 @@ export {
   applyEnvironmentOverrides,
   loadRootDotEnv,
   parseDotEnvFile,
+  parseOptionalBoolean,
 };

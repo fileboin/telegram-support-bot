@@ -64,7 +64,7 @@ marketplace_listing_categories:
   - 'Nekretnine'
   - 'Razno'
 
-dev_mode: true # Enable/disable dev mode
+dev_mode: false # Enable/disable dev mode
 
 # customize your language
 language:
