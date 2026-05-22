@@ -247,7 +247,11 @@ const setLeadFeeCommand = async (ctx: Context): Promise<void> => {
  */
 const miniAppCommand = (ctx: Context): void => {
   if (!cache.config.web_app_url) {
-    middleware.reply(ctx, 'Mini App URL is not configured yet.');
+    middleware.reply(ctx, 'Mini App URL is not configured yet. Set WEB_APP_URL or PUBLIC_URL to your public HTTPS app URL.');
+    return;
+  }
+  if (!/^https:\/\//i.test(cache.config.web_app_url)) {
+    middleware.reply(ctx, 'Mini App URL must use a public HTTPS address.');
     return;
   }
   middleware.reply(ctx, 'Open the Marketplace Mini App.', {

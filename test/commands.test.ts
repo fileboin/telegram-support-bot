@@ -57,6 +57,7 @@ describe('Commands Module', () => {
     mockGetPhoneVerificationSummary.mockResolvedValue({ verified: false, phoneNumberMasked: '' });
     mockSetMarketplaceLeadFee.mockResolvedValue({ currency: 'EUR', leadFee: 0.75 });
     mockParseLeadFeeInput.mockImplementation((value: string) => Number(value));
+    cache.config.web_app_url = 'https://example.com/app';
     // Reset cache arrays
     cache.ticketIDs.length = 0;
     cache.ticketStatus.length = 0;
@@ -278,6 +279,18 @@ describe('Commands Module', () => {
             inline_keyboard: [[{ text: 'Open Mini App', web_app: { url: 'https://example.com/app' } }]],
           },
         })
+      );
+    });
+
+    it('should refuse to share the mini app when no public URL is configured', () => {
+      const ctx = createMockContext(true);
+      cache.config.web_app_url = '';
+
+      commands.miniAppCommand(ctx);
+
+      expect(mockReply).toHaveBeenCalledWith(
+        ctx,
+        'Mini App URL is not configured yet. Set WEB_APP_URL or PUBLIC_URL to your public HTTPS app URL.'
       );
     });
 

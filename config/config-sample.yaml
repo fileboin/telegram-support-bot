@@ -29,7 +29,7 @@ signal_host: 'localhost:40153' # Signal host (default: localhost:40153)
 
 web_server: false # Enable/disable web server
 web_server_port: 8080 # Port for web server
-web_app_url: 'https://your-domain.example.com' # Public HTTPS URL used for Telegram Mini App buttons
+web_app_url: '' # Public HTTPS URL used for Telegram Mini App buttons (prefer WEB_APP_URL or PUBLIC_URL in hosting)
 
 marketplace_enabled: true
 marketplace_lead_fee: 0.50
@@ -64,7 +64,7 @@ marketplace_listing_categories:
   - 'Nekretnine'
   - 'Razno'
 
-dev_mode: true # Enable/disable dev mode
+dev_mode: false # Enable/disable dev mode
 
 # customize your language
 language:

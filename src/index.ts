@@ -59,10 +59,37 @@ function createAddons(): Addon[] {
   return addons;
 }
 
+function logStartupConfigurationSummary() {
+  const hasMongoUri = Boolean(cache.config.mongodb_uri || process.env.MONGODB_URI || process.env.MONGO_URI);
+  const hasDatabaseUrl = Boolean(cache.config.database_url || process.env.DATABASE_URL);
+  const hasBotToken = Boolean(cache.config.bot_token);
+  const hasAdminId = Boolean(cache.config.owner_id);
+  const declaredPort = process.env.PORT || cache.config.web_server_port || 8080;
+
+  log.info(
+    [
+      'Startup config summary:',
+      `bot_token=${hasBotToken ? 'set' : 'missing'}`,
+      `admin_id=${hasAdminId ? 'set' : 'missing'}`,
+      `mongodb_uri=${hasMongoUri ? 'set' : 'missing'}`,
+      `database_url=${hasDatabaseUrl ? 'set' : 'missing'}`,
+      `web_server=${cache.config.web_server ? 'enabled' : 'disabled'}`,
+      `web_app_url=${cache.config.web_app_url || 'missing'}`,
+      `marketplace=${cache.config.marketplace_enabled ? 'enabled' : 'disabled'}`,
+      `port=${declaredPort}`,
+    ].join(' ')
+  );
+
+  if (cache.config.web_server && !cache.config.web_app_url) {
+    log.warn('Web server is enabled, but no public Mini App URL is configured. Set WEB_APP_URL or PUBLIC_URL for /miniapp.');
+  }
+}
+
 /**
  * Main initialization function.
  */
 async function main(logs = true) {
+  logStartupConfigurationSummary();
   await db.connect();
   await checkAndMigrateDatabase();
 

@@ -23,9 +23,14 @@ FROM node:22-alpine AS production
 
 WORKDIR /bot
 
+# Ensure runtime config directory exists and ship the sample config fallback.
+RUN mkdir -p /bot/config
+
 # Copy package files
 COPY ./package.json /bot/package.json
 COPY ./package-lock.json /bot/package-lock.json
+COPY ./index.js /bot/index.js
+COPY ./config/config-sample.yaml /bot/config/config-sample.yaml
 
 # Install build dependencies for native modules
 RUN apk add --no-cache python3 build-base
@@ -40,4 +45,4 @@ COPY --from=builder /bot/build /bot/build
 ENV NODE_ENV=production
 
 # Run the application
-CMD ["npm", "run", "prod", "--prefix", "/bot"]
+CMD ["node", "./index.js"]

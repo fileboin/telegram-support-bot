@@ -1,5 +1,5 @@
 import cache from '../src/cache';
-import { applyEnvironmentOverrides, parseDotEnvFile } from '../src/env-config';
+import { applyEnvironmentOverrides, parseDotEnvFile, parseOptionalBoolean } from '../src/env-config';
 import * as fs from 'fs';
 import * as YAML from 'yaml';
 
@@ -87,6 +87,11 @@ describe('Cache Module', () => {
     const baseConfig: any = {
       bot_token: 'yaml-token',
       owner_id: 'yaml-owner',
+      dev_mode: false,
+      web_server: false,
+      web_server_port: 3000,
+      web_app_url: '',
+      marketplace_enabled: true,
       marketplace_lead_fee: 0.5,
       mongodb_uri: 'mongodb://yaml-host/support',
       database_url: '',
@@ -98,14 +103,72 @@ describe('Cache Module', () => {
       ADMIN_TELEGRAM_ID: 'env-owner',
       DEFAULT_LEAD_FEE_EUR: '0.90',
       MY_EVM_RECEIVING_ADDRESS: '0xabc',
+      DEV_MODE: 'true',
+      WEB_SERVER: 'true',
+      WEB_SERVER_PORT: '9090',
+      WEB_APP_URL: 'https://example.com/app',
+      MARKETPLACE_ENABLED: 'false',
       DATABASE_URL: 'postgresql://example',
     });
 
     expect(mapped.bot_token).toBe('env-token');
     expect(mapped.owner_id).toBe('env-owner');
+    expect(mapped.dev_mode).toBe(true);
+    expect(mapped.web_server).toBe(true);
+    expect(mapped.web_server_port).toBe(9090);
+    expect(mapped.web_app_url).toBe('https://example.com/app');
+    expect(mapped.marketplace_enabled).toBe(false);
     expect(mapped.marketplace_lead_fee).toBe(0.9);
     expect(mapped.my_evm_receiving_address).toBe('0xabc');
     expect(mapped.database_url).toBe('postgresql://example');
     expect(mapped.mongodb_uri).toBe('mongodb://yaml-host/support');
+  });
+
+  it('should derive the Mini App URL from hosted public env values', () => {
+    const baseConfig: any = {
+      web_server: false,
+      web_app_url: '',
+    };
+
+    const mapped = applyEnvironmentOverrides(baseConfig, {
+      PUBLIC_URL: 'https://hosted.example.com/app/',
+    });
+
+    expect(mapped.web_app_url).toBe('https://hosted.example.com/app');
+    expect(mapped.web_server).toBe(true);
+  });
+
+  it('should clear the placeholder Mini App URL when no hosted URL exists', () => {
+    const baseConfig: any = {
+      web_server: false,
+      web_app_url: 'https://your-domain.example.com',
+    };
+
+    const mapped = applyEnvironmentOverrides(baseConfig, {});
+
+    expect(mapped.web_app_url).toBe('');
+    expect(mapped.web_server).toBe(false);
+  });
+
+  it('should accept domain-only hosting env values for the Mini App URL', () => {
+    const baseConfig: any = {
+      web_server: false,
+      web_app_url: '',
+    };
+
+    const mapped = applyEnvironmentOverrides(baseConfig, {
+      RAILWAY_PUBLIC_DOMAIN: 'marketplace.up.railway.app',
+    });
+
+    expect(mapped.web_app_url).toBe('https://marketplace.up.railway.app');
+    expect(mapped.web_server).toBe(true);
+  });
+
+  it('should parse common boolean env values', () => {
+    expect(parseOptionalBoolean('true')).toBe(true);
+    expect(parseOptionalBoolean('1')).toBe(true);
+    expect(parseOptionalBoolean('false')).toBe(false);
+    expect(parseOptionalBoolean('off')).toBe(false);
+    expect(parseOptionalBoolean('maybe')).toBeNull();
   });
 });
