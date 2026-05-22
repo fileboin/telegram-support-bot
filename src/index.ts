@@ -74,10 +74,15 @@ function logStartupConfigurationSummary() {
       `mongodb_uri=${hasMongoUri ? 'set' : 'missing'}`,
       `database_url=${hasDatabaseUrl ? 'set' : 'missing'}`,
       `web_server=${cache.config.web_server ? 'enabled' : 'disabled'}`,
+      `web_app_url=${cache.config.web_app_url || 'missing'}`,
       `marketplace=${cache.config.marketplace_enabled ? 'enabled' : 'disabled'}`,
       `port=${declaredPort}`,
     ].join(' ')
   );
+
+  if (cache.config.web_server && !cache.config.web_app_url) {
+    log.warn('Web server is enabled, but no public Mini App URL is configured. Set WEB_APP_URL or PUBLIC_URL for /miniapp.');
+  }
 }
 
 /**

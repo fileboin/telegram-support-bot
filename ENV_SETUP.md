@@ -23,6 +23,8 @@ If you do not see it in the explorer, use Quick Open:
 - `DATABASE_URL` - your Neon Serverless PostgreSQL connection string for future migration work
 - `MY_EVM_RECEIVING_ADDRESS` - your EVM wallet receiving address
 - `DEFAULT_LEAD_FEE_EUR` - default marketplace lead fee, currently `0.50`
+- `WEB_APP_URL` - the public HTTPS URL for the Mini App, for example `https://your-app.example.com`
+- `PUBLIC_URL` - optional hosting-provided public URL; supported as a fallback for Mini App links
 
 ## Runtime mapping
 
@@ -34,9 +36,12 @@ The app now maps these `.env` values automatically:
 - `MY_EVM_RECEIVING_ADDRESS` -> `my_evm_receiving_address`
 - `DATABASE_URL` -> `database_url`
 - `MONGODB_URI` -> `mongodb_uri`
+- `WEB_APP_URL` -> `web_app_url`
+- `PUBLIC_URL` -> `web_app_url` fallback
 
 If `DATABASE_URL` is a MongoDB connection string, it will also be used as `mongodb_uri`.
 If it is a PostgreSQL/Neon URL, it is stored in runtime config, but the current app still uses MongoDB/Mongoose for persistence.
+If `web_app_url` is still empty, `/miniapp` will stay disabled instead of sending a broken placeholder link.
 
 ## Safe template
 

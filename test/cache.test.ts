@@ -124,6 +124,46 @@ describe('Cache Module', () => {
     expect(mapped.mongodb_uri).toBe('mongodb://yaml-host/support');
   });
 
+  it('should derive the Mini App URL from hosted public env values', () => {
+    const baseConfig: any = {
+      web_server: false,
+      web_app_url: '',
+    };
+
+    const mapped = applyEnvironmentOverrides(baseConfig, {
+      PUBLIC_URL: 'https://hosted.example.com/app/',
+    });
+
+    expect(mapped.web_app_url).toBe('https://hosted.example.com/app');
+    expect(mapped.web_server).toBe(true);
+  });
+
+  it('should clear the placeholder Mini App URL when no hosted URL exists', () => {
+    const baseConfig: any = {
+      web_server: false,
+      web_app_url: 'https://your-domain.example.com',
+    };
+
+    const mapped = applyEnvironmentOverrides(baseConfig, {});
+
+    expect(mapped.web_app_url).toBe('');
+    expect(mapped.web_server).toBe(false);
+  });
+
+  it('should accept domain-only hosting env values for the Mini App URL', () => {
+    const baseConfig: any = {
+      web_server: false,
+      web_app_url: '',
+    };
+
+    const mapped = applyEnvironmentOverrides(baseConfig, {
+      RAILWAY_PUBLIC_DOMAIN: 'marketplace.up.railway.app',
+    });
+
+    expect(mapped.web_app_url).toBe('https://marketplace.up.railway.app');
+    expect(mapped.web_server).toBe(true);
+  });
+
   it('should parse common boolean env values', () => {
     expect(parseOptionalBoolean('true')).toBe(true);
     expect(parseOptionalBoolean('1')).toBe(true);

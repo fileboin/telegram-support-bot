@@ -39,7 +39,7 @@ pass_start: false
 signal_enabled: false
 web_server: true
 web_server_port: 8080
-web_app_url: 'https://your-domain.example.com'
+web_app_url: '' # Prefer WEB_APP_URL or PUBLIC_URL in hosting so Mini App buttons use the real deploy URL
 marketplace_enabled: true
 marketplace_lead_fee: 0.50
 marketplace_currency: 'EUR'
