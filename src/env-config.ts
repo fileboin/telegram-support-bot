@@ -85,6 +85,11 @@ const applyEnvironmentOverrides = (config: Config, env: Record<string, string>):
     nextConfig.web_server = webServerFromEnv;
   }
 
+  const devModeFromEnv = parseOptionalBoolean(runtimeEnv.DEV_MODE);
+  if (devModeFromEnv !== null) {
+    nextConfig.dev_mode = devModeFromEnv;
+  }
+
   const webServerPortFromEnv = parseOptionalNumber(runtimeEnv.WEB_SERVER_PORT);
   if (webServerPortFromEnv !== null) {
     nextConfig.web_server_port = webServerPortFromEnv;

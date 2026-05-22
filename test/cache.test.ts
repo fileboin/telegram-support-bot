@@ -87,6 +87,7 @@ describe('Cache Module', () => {
     const baseConfig: any = {
       bot_token: 'yaml-token',
       owner_id: 'yaml-owner',
+      dev_mode: false,
       web_server: false,
       web_server_port: 3000,
       web_app_url: '',
@@ -102,6 +103,7 @@ describe('Cache Module', () => {
       ADMIN_TELEGRAM_ID: 'env-owner',
       DEFAULT_LEAD_FEE_EUR: '0.90',
       MY_EVM_RECEIVING_ADDRESS: '0xabc',
+      DEV_MODE: 'true',
       WEB_SERVER: 'true',
       WEB_SERVER_PORT: '9090',
       WEB_APP_URL: 'https://example.com/app',
@@ -111,6 +113,7 @@ describe('Cache Module', () => {
 
     expect(mapped.bot_token).toBe('env-token');
     expect(mapped.owner_id).toBe('env-owner');
+    expect(mapped.dev_mode).toBe(true);
     expect(mapped.web_server).toBe(true);
     expect(mapped.web_server_port).toBe(9090);
     expect(mapped.web_app_url).toBe('https://example.com/app');
